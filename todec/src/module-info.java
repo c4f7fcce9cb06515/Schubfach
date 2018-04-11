@@ -1,0 +1,3 @@
+module todec {
+    exports math;
+}
