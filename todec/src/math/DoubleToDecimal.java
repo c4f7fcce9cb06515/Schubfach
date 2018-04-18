@@ -260,11 +260,11 @@ final public class DoubleToDecimal {
      * <p>The characters of the result are all drawn from the ASCII set.
      * <ul>
      *     <li> Any NaN, whether quiet or signaling, is rendered symbolically
-     *     as "NaN", regardless of the sign bit.
+     *     as {@code "NaN"}, regardless of the sign bit.
      *     <li> The infinities +&#x221e; and -&#x221e; are rendered as
-     *     "Infinity" and "-Infinity", respectively.
-     *     <li> The zeroes +0.0 and -0.0 are rendered as "0.0" and "-0.0",
-     *     respectively.
+     *     {@code "Infinity"} and {@code "-Infinity"}, respectively.
+     *     <li> The zeroes +0.0 and -0.0 are rendered as
+     *     {@code "0.0"} and {@code "-0.0"}, respectively.
      *     <li> Otherwise {@code v} is finite and non-zero.
      *     It is rendered in two stages:
      *     <ul>
