@@ -191,7 +191,7 @@ final public class DoubleToDecimal {
             return ep + 1;
         }
 
-        // Returns the smallest double greater than or equal to 10^e.
+        // Returns the smallest double v such that 10^e <= v.
         private static double roundCeilPow10(int e) {
             int e2 = ord2pow10(e);
             if (e2 >= ORD_2_MIN_NORMAL) {
@@ -292,8 +292,6 @@ final public class DoubleToDecimal {
      *     There is never the need to go beyond a length of 17.
      *     <li>Among these, only the ones that have the shortest possible
      *     length  not less than 2 are selected and the other are discarded.
-     *     (As noted above, among the selected ones there might be some of
-     *     length 1.)
      *     <li>Finally, among these, only the one closest to {@code v} is
      *     definitely selected: or if two are equally close to {@code v}, the
      *     one whose least significant digit is even is definitely selected.
@@ -303,15 +301,15 @@ final public class DoubleToDecimal {
      * If <i>d</i> &#x3c; 0, the first character of the string is the sign
      * '{@code -}'. Then consider the absolute value and let
      * |<i>d</i>| = <i>m</i> &#xb7; 10<sup><i>k</i></sup>, for some unique
-     * real <i>m</i> and integer <i>k</i> meeting 1 &#x2264; <i>m</i> &lt; 10.
+     * real <i>m</i> meeting 1 &#x2264; <i>m</i> &lt; 10 and integer <i>k</i>.
      * Further, let the decimal expansion of <i>m</i> be
      * <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&#x2026;<!--
      * --><i>m</i><sub><i>i</i></sub>,
      * with <i>i</i> &#x2265; 1 and <i>m</i><sub><i>i</i></sub> &#x2260; 0.
      * <ul>
      *     <li>Case -3 &#x2264; k &#x3c; 0: |<i>d</i>| is formatted as
-     *     "0.0&#x2026;0<i>m</i><sub>1</sub>&#x2026;<!--
-     *     --><i>m</i><sub><i>i</i></sub>",
+     *     0.0&#x2026;0<i>m</i><sub>1</sub>&#x2026;<!--
+     *     --><i>m</i><sub><i>i</i></sub>,
      *     where there are exactly -<i>k</i> leading zeroes before
      *     <i>m</i><sub>1</sub>, including the zero before the decimal point.
      *     For example, {@code "0.01234"}.
@@ -319,17 +317,17 @@ final public class DoubleToDecimal {
      *     <ul>
      *         <li>Subcase <i>i</i> &#x3c; <i>k</i> + 2:
      *         |<i>d</i>| is formatted as
-     *         "<i>m</i><sub>1</sub>&#x2026;<!--
-     *         --><i>m</i><sub><i>i</i></sub>0&#x2026;0.0",
+     *         <i>m</i><sub>1</sub>&#x2026;<!--
+     *         --><i>m</i><sub><i>i</i></sub>0&#x2026;0.0,
      *         where there are exactly <i>k</i> + 2 - <i>i</i> trailing zeroes
      *         after <i>m</i><sub><i>i</i></sub>, including the zero after
      *         the decimal point.
      *         For example, {@code "1200.0"}.
      *         <li>Subcase <i>i</i> &#x2265; <i>k</i> + 2:
      *         |<i>d</i>| is formatted as
-     *         "<i>m</i><sub>1</sub>&#x2026;<i>m</i><sub><i>k</i>+1</sub>.<!--
+     *         <i>m</i><sub>1</sub>&#x2026;<i>m</i><sub><i>k</i>+1</sub>.<!--
      *         --><i>m</i><sub><i>k</i>+2</sub>&#x2026;<!--
-     *         --><i>m</i><sub><i>i</i></sub>".
+     *         --><i>m</i><sub><i>i</i></sub>.
      *         For example, {@code "1234.567"}.
      *     </ul>
      *     <li>Case <i>k</i> &#x3c; -3 or <i>k</i> &#x2265; 7:
@@ -339,12 +337,12 @@ final public class DoubleToDecimal {
      *     <ul>
      *         <li>Subcase <i>i</i> = 1:
      *         |<i>d</i>| is formatted as
-     *         "<i>m</i><sub>1</sub>.0E<i>k</i>".
+     *         <i>m</i><sub>1</sub>.0E<i>k</i>.
      *         For example, {@code "2.0E23"}.
      *         <li>Subcase <i>i</i> > 1:
      *         |<i>d</i>| is formatted as
-     *         "<i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&#x2026;<!--
-     *         --><i>m</i><sub><i>i</i></sub>E<i>k</i>".
+     *         <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&#x2026;<!--
+     *         --><i>m</i><sub><i>i</i></sub>E<i>k</i>.
      *         For example, {@code "1.2345E-67"}.
      *     </ul>
      *     The exponent <i>k</i> is formatted as in
