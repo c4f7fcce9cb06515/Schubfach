@@ -77,10 +77,10 @@ final class MathUtils {
     }
 
     /**
-     * Returns the integer <i>k</i> such that 10<sup><i>k</i>-1</sup> &#x2264;
-     * 2<sup>{@code e}</sup> &#x3c; 10<sup><i>k</i></sup>.
+     * Returns the integer <i>k</i> such that 10<sup><i>k</i>-1</sup> &le;
+     * 2<sup>{@code e}</sup> &lt; 10<sup><i>k</i></sup>.
      * <p>
-     * The result is correct when -198'096'464 &#x2264; {@code e} &#x2264;
+     * The result is correct when -198'096'464 &le; {@code e} &le;
      * 146'964'307.
      * Otherwise the result may or may not be correct.
      */
@@ -89,10 +89,10 @@ final class MathUtils {
     }
 
     /**
-     * Returns the integer <i>k</i> such that 2<sup><i>k</i>-1</sup> &#x2264;
-     * 10<sup>{@code e}</sup> &#x3c; 2<sup><i>k</i></sup>.
+     * Returns the integer <i>k</i> such that 2<sup><i>k</i>-1</sup> &le;
+     * 10<sup>{@code e}</sup> &lt; 2<sup><i>k</i></sup>.
      * <p>
-     * The result is correct when -44'240'664 &#x2264; {@code e} &#x2264;
+     * The result is correct when -44'240'664 &le; {@code e} &le;
      * 59'632'977.
      * Otherwise the result may or may not be correct.
      */
@@ -102,8 +102,8 @@ final class MathUtils {
 
     /**
      * Returns the high {@link Long#SIZE} bits of the full product
-     * {@code x}{@code y}, namely
-     * &#x23a3;{@code x}{@code y} &#xb7; 2<sup>-{@link Long#SIZE}</sup>&#x23a6;.
+     * {@code x}{@code y}, namely &lfloor;{@code x}{@code y} &middot;<!--
+     * -->2<sup>-{@link Long#SIZE}</sup>&rfloor;.
      * <p>
      * Both {@code x} and {@code y} as well as the result are interpreted as
      * unsigned {@code long}s.
@@ -133,16 +133,16 @@ final class MathUtils {
      * Returns one of two components of an approximation of a power of 10.
      *
      * <p>More precisely, let
-     * 10<sup>{@code e}</sup> = <i>d</i> &#xb7; 2<sup><i>r</i></sup>
+     * 10<sup>{@code e}</sup> = <i>d</i> &middot; 2<sup><i>r</i></sup>
      * for some integer <i>r</i> and real <i>d</i> with
-     * 2<sup>{@link Long#SIZE}-1</sup> &#x2264; <i>d</i> &#x3c;
+     * 2<sup>{@link Long#SIZE}-1</sup> &le; <i>d</i> &lt;
      * 2<sup>{@link Long#SIZE}</sup>.
      *
-     * <p>This method returns &#x23a3;<i>d</i>&#x23a6; as an
+     * <p>This method returns &lfloor;<i>d</i>&rfloor; as an
      * unsigned {@code long}, while {@link #pow10r(int)} returns <i>r</i>.
      *
      * @param e  The exponent of the power of 10, bounded by
-     *           {@link #MIN_EXP} &#x2264; {@code e} &#x2264; {@link #MAX_EXP}
+     *           {@link #MIN_EXP} &le; {@code e} &le; {@link #MAX_EXP}
      * @see #pow10r(int)
      */
     static long floorPow10d(int e) {
@@ -156,7 +156,7 @@ final class MathUtils {
      * {@link #floorPow10d(int)}.
      *
      * @param e  The exponent of the power of 10, bounded by
-     *           {@link #MIN_EXP} &#x2264; {@code e} &#x2264; {@link #MAX_EXP}
+     *           {@link #MIN_EXP} &le; {@code e} &le; {@link #MAX_EXP}
      * @see #floorPow10d(int)
      */
     static int pow10r(int e) {

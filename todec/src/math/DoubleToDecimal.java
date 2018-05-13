@@ -46,13 +46,13 @@ final public class DoubleToDecimal {
      * {@code double}s and some extractors suited for finite positive values.
      *
      * <p>A finite positive {@code double} <i>v</i> has the form
-     * <i>v</i> = <i>c</i>&#xb7;2<sup><i>q</i></sup>,
+     * <i>v</i> = <i>c</i>&middot;2<sup><i>q</i></sup>,
      * where integers <i>c</i>, <i>q</i> meet
      * <ul>
-     * <li> either 2<sup>{@link #P}-1</sup> &#x2264; <i>c</i> &#x3c;
-     * 2<sup>{@link #P}</sup> and {@link #Q_MIN} &#x2264; <i>q</i> &#x2264;
+     * <li> either 2<sup>{@link #P}-1</sup> &le; <i>c</i> &lt;
+     * 2<sup>{@link #P}</sup> and {@link #Q_MIN} &le; <i>q</i> &le;
      * {@link #Q_MAX} (normal <i>v</i>)
-     * <li> or 0 &#x3c; <i>c</i> &#x3c; 2<sup>{@link #P}-1</sup> and
+     * <li> or 0 &lt; <i>c</i> &lt; 2<sup>{@link #P}-1</sup> and
      * <i>c</i> = {@link #Q_MIN} (subnormal <i>v</i>)
      * </ul>
      */
@@ -100,22 +100,22 @@ final public class DoubleToDecimal {
 
         /**
          * The integer <i>e</i> such that
-         * 10<sup><i>e</i>-1</sup> &#x2264; {@link java.lang.Double#MIN_VALUE}
-         * &#x3c; 10<sup><i>e</i></sup>.
+         * 10<sup><i>e</i>-1</sup> &le; {@link java.lang.Double#MIN_VALUE}
+         * &lt; 10<sup><i>e</i></sup>.
          */
         static final int E_MIN_VALUE = -323;
 
         /**
          * The integer <i>e</i> such that
-         * 10<sup><i>e</i>-1</sup> &#x2264; {@link java.lang.Double#MIN_NORMAL}
-         * &#x3c; 10<sup><i>e</i></sup>.
+         * 10<sup><i>e</i>-1</sup> &le; {@link java.lang.Double#MIN_NORMAL}
+         * &lt; 10<sup><i>e</i></sup>.
          */
         static final int E_MIN_NORMAL = -307;
 
         /**
          * The integer <i>e</i> such that
-         * 10<sup><i>e</i>-1</sup> &#x2264; {@link java.lang.Double#MAX_VALUE}
-         * &#x3c; 10<sup><i>e</i></sup>.
+         * 10<sup><i>e</i>-1</sup> &le; {@link java.lang.Double#MAX_VALUE}
+         * &lt; 10<sup><i>e</i></sup>.
          */
         static final int E_MAX_VALUE = 309;
 
@@ -172,7 +172,7 @@ final public class DoubleToDecimal {
 
         /**
          * For finite positive {@code v}, returns the integer <i>e</i> such that
-         * 2<sup><i>e</i>-1</sup> &#x2264; {@code v} &#x3c;
+         * 2<sup><i>e</i>-1</sup> &le; {@code v} &lt;
          * 2<sup><i>e</i></sup>.
          */
         private static int ord2(double v) {
@@ -182,7 +182,7 @@ final public class DoubleToDecimal {
 
         /**
          * For finite positive {@code v}, returns the integer <i>e</i> such that
-         * 10<sup><i>e</i>-1</sup> &#x2264; {@code v} &#x3c;
+         * 10<sup><i>e</i>-1</sup> &le; {@code v} &lt;
          * 10<sup><i>e</i></sup>.
          */
         static int ord10(double v) {
@@ -261,7 +261,7 @@ final public class DoubleToDecimal {
      * <ul>
      *     <li> Any NaN, whether quiet or signaling, is rendered symbolically
      *     as {@code "NaN"}, regardless of the sign bit.
-     *     <li> The infinities +&#x221e; and -&#x221e; are rendered as
+     *     <li> The infinities +&infin; and -&infin; are rendered as
      *     {@code "Infinity"} and {@code "-Infinity"}, respectively.
      *     <li> The zeroes +0.0 and -0.0 are rendered as
      *     {@code "0.0"} and {@code "-0.0"}, respectively.
@@ -277,7 +277,7 @@ final public class DoubleToDecimal {
      * </ul>
      *
      * <p>A decimal <i>d</i> is said to have length <i>i</i> if it has
-     * the form <i>d</i> = <i>c</i> &#xb7; 10<sup><i>q</i></sup>
+     * the form <i>d</i> = <i>c</i> &middot; 10<sup><i>q</i></sup>
      * for some integers <i>c</i> and <i>q</i> and if the decimal expansion of
      * <i>c</i> consists of <i>i</i> digits. Note that if <i>d</i> has some
      * length, then it has any other greater length as well: grow <i>c</i> by
@@ -298,39 +298,39 @@ final public class DoubleToDecimal {
      * </ul>
      *
      * <p>The selected decimal <i>d</i> is then formatted as a string.
-     * If <i>d</i> &#x3c; 0, the first character of the string is the sign
+     * If <i>d</i> &lt; 0, the first character of the string is the sign
      * '{@code -}'. Then consider the absolute value and let
-     * |<i>d</i>| = <i>m</i> &#xb7; 10<sup><i>k</i></sup>, for some unique
-     * real <i>m</i> meeting 1 &#x2264; <i>m</i> &lt; 10 and integer <i>k</i>.
+     * |<i>d</i>| = <i>m</i> &middot; 10<sup><i>k</i></sup>, for some unique
+     * real <i>m</i> meeting 1 &le; <i>m</i> &lt; 10 and integer <i>k</i>.
      * Further, let the decimal expansion of <i>m</i> be
-     * <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&#x2026;<!--
+     * <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&hellip;<!--
      * --><i>m</i><sub><i>i</i></sub>,
-     * with <i>i</i> &#x2265; 1 and <i>m</i><sub><i>i</i></sub> &#x2260; 0.
+     * with <i>i</i> &ge; 1 and <i>m</i><sub><i>i</i></sub> &ne; 0.
      * <ul>
-     *     <li>Case -3 &#x2264; k &#x3c; 0: |<i>d</i>| is formatted as
-     *     0.0&#x2026;0<i>m</i><sub>1</sub>&#x2026;<!--
+     *     <li>Case -3 &le; k &lt; 0: |<i>d</i>| is formatted as
+     *     0.0&hellip;0<i>m</i><sub>1</sub>&hellip;<!--
      *     --><i>m</i><sub><i>i</i></sub>,
      *     where there are exactly -<i>k</i> leading zeroes before
      *     <i>m</i><sub>1</sub>, including the zero before the decimal point.
      *     For example, {@code "0.01234"}.
-     *     <li>Case 0 &#x2264; <i>k</i> &#x3c; 7:
+     *     <li>Case 0 &le; <i>k</i> &lt; 7:
      *     <ul>
-     *         <li>Subcase <i>i</i> &#x3c; <i>k</i> + 2:
+     *         <li>Subcase <i>i</i> &lt; <i>k</i> + 2:
      *         |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>&#x2026;<!--
-     *         --><i>m</i><sub><i>i</i></sub>0&#x2026;0.0,
+     *         <i>m</i><sub>1</sub>&hellip;<!--
+     *         --><i>m</i><sub><i>i</i></sub>0&hellip;0.0,
      *         where there are exactly <i>k</i> + 2 - <i>i</i> trailing zeroes
      *         after <i>m</i><sub><i>i</i></sub>, including the zero after
      *         the decimal point.
      *         For example, {@code "1200.0"}.
-     *         <li>Subcase <i>i</i> &#x2265; <i>k</i> + 2:
+     *         <li>Subcase <i>i</i> &ge; <i>k</i> + 2:
      *         |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>&#x2026;<i>m</i><sub><i>k</i>+1</sub>.<!--
-     *         --><i>m</i><sub><i>k</i>+2</sub>&#x2026;<!--
+     *         <i>m</i><sub>1</sub>&hellip;<i>m</i><sub><i>k</i>+1</sub>.<!--
+     *         --><i>m</i><sub><i>k</i>+2</sub>&hellip;<!--
      *         --><i>m</i><sub><i>i</i></sub>.
      *         For example, {@code "1234.567"}.
      *     </ul>
-     *     <li>Case <i>k</i> &#x3c; -3 or <i>k</i> &#x2265; 7:
+     *     <li>Case <i>k</i> &lt; -3 or <i>k</i> &ge; 7:
      *     computerized scientific notation is used to format |<i>d</i>|,
      *     by combining <i>m</i> and <i>k</i> separated by the exponent
      *     indicator '{@code E}'.
@@ -341,7 +341,7 @@ final public class DoubleToDecimal {
      *         For example, {@code "2.0E23"}.
      *         <li>Subcase <i>i</i> > 1:
      *         |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&#x2026;<!--
+     *         <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&hellip;<!--
      *         --><i>m</i><sub><i>i</i></sub>E<i>k</i>.
      *         For example, {@code "1.2345E-67"}.
      *     </ul>

@@ -70,7 +70,7 @@ final class Natural {
 
     /**
      * Returns a {@link Natural} with the value
-     * {@code v} &#xb7; 2<sup>{@code n}</sup>.
+     * {@code v} &middot; 2<sup>{@code n}</sup>.
      * The value {@code v} is interpreted as an unsigned {@code long} and
      * {@code n} must be non-negative.
      */
@@ -89,7 +89,7 @@ final class Natural {
 
     /**
      * Returns -1, 0 or 1, depending on whether {@code this} is
-     * &#x3c;, = or &#x3e; {@code y}, respectively.
+     * &lt;, = or &gt; {@code y}, respectively.
      */
     int compareTo(Natural y) {
         if (len < y.len) {
@@ -175,7 +175,7 @@ final class Natural {
 
     /**
      * Returns {@code this} - {@code y}, where it is assumed that
-     * {@code this} &#x2265; {@code y}.
+     * {@code this} &ge; {@code y}.
      */
     Natural subtract(Natural y) {
         int[] rd = new int[len];
@@ -195,8 +195,8 @@ final class Natural {
     }
 
     /**
-     * Returns &#x23a3;{@code this} &#xb7; 2<sup>-{@code n}</sup>&#x23a6;,
-     * where it is assumed that {@code n} &#x2265; 0 and that the result
+     * Returns &lfloor;{@code this} &middot; 2<sup>-{@code n}</sup>&rfloor;,
+     * where it is assumed that {@code n} &ge; 0 and that the result
      * is an unsigned {@code long}.
      */
     long shiftRight(int n) {
@@ -210,8 +210,8 @@ final class Natural {
     }
 
     /**
-     * Returns {@code this} + {@code y} &#xb7; 2<sup>{@code n}</sup>,
-     * where it is assumed that {@code n} &#x2265; 0.
+     * Returns {@code this} + {@code y} &middot; 2<sup>{@code n}</sup>,
+     * where it is assumed that {@code n} &ge; 0.
      */
     Natural addShiftLeft(Natural y, int n) {
         int maxLen = max(len, y.len);
@@ -280,12 +280,12 @@ final class Natural {
     }
 
     /**
-     * Returns &#x23a3;{@code this} / {@code y}&#x23a6;.
+     * Returns &lfloor;{@code this} / {@code y}&rfloor;.
      * <p>Assumes that:
      * <ul>
-     * <li> {@code this} &#x2265; 2<sup>32</sup>.
-     * <li> {@code y} &#x3e; 0.
-     * <li> The result is an unsigned {@code long} &#x2265; 2<sup>32</sup>.
+     * <li> {@code this} &ge; 2<sup>32</sup>.
+     * <li> {@code y} &gt; 0.
+     * <li> The result is an unsigned {@code long} &ge; 2<sup>32</sup>.
      * </ul>
      */
     long divide(Natural y) {

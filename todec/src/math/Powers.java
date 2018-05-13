@@ -42,7 +42,7 @@ final class Powers {
 
     /**
      * The integer <i>e</i> such that
-     * 5<sup><i>e</i></sup> &#x2264; <i>M</i> &#x3c; 5<sup><i>e</i>+1</sup>,
+     * 5<sup><i>e</i></sup> &le; <i>M</i> &lt; 5<sup><i>e</i>+1</sup>,
      * where <i>M</i> is the largest unsigned {@code long}, namely
      * <i>M</i> = 2<sup>{@link Long#SIZE}</sup> - 1.
      */
@@ -56,7 +56,7 @@ final class Powers {
 
     /**
      * The integer <i>e</i> such that
-     * 10<sup><i>e</i></sup> &#x2264; <i>M</i> &#x3c; 10<sup><i>e</i>+1</sup>,
+     * 10<sup><i>e</i></sup> &le; <i>M</i> &lt; 10<sup><i>e</i>+1</sup>,
      * where <i>M</i> is the largest unsigned {@code long}, namely
      * <i>M</i> = 2<sup>{@link Long#SIZE}</sup> - 1.
      */
