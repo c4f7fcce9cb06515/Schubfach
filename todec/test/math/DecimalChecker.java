@@ -208,6 +208,7 @@ class DecimalChecker {
         if (!hasCorrectFormat(s)) {
             return false;
         }
+
         // s must of course recover v
         try {
             if (v != Double.parseDouble(s)) {
