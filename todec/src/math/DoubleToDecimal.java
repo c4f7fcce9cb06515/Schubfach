@@ -396,13 +396,10 @@ final public class DoubleToDecimal {
         c = c(bits);
         lout = rout = (int) (c) & 0x1;
         /*
-        The reduced() method assumes v is normal, i.e., has full precision P,
-        and that powers of 2 have unequally distant predecessor and successor.
-        MIN_NORMAL is normal and a power of 2 but its predecessor and
-        its successor are equally close to it, so is excluded from reduced().
+        The reduced() method assumes v is normal and not a power of 2.
         Note that reduced() might failover to full().
          */
-        if (v > MIN_NORMAL) {
+        if (c > C_MIN) {
             return reduced();
         }
         return full();
@@ -603,18 +600,17 @@ final public class DoubleToDecimal {
 
     /*
     A faster version that succeeds in about 99.5% of the cases.
-    It must be invoked only on values greater than MIN_NORMAL.
+    It must be invoked only on normal values that are not powers of 2.
     When it fails, it resorts to the full() version.
      */
     private String reduced() {
         int p = -P - q - pow10r(H - e);
         long t = floorPow10d(H - e);
         long cb = c << D;
+        // all arguments to multiplyHighUnsigned() are in [2^63, 2^64)
         long vh = multiplyHighUnsigned(cb, t);
-        long cbl = cb - (1L << D - (c != Double.C_MIN ? 1 : 2));
-        long vhl = multiplyHighUnsigned(cbl, t);
-        long cbr = cb + (1L << D - 1);
-        long vhr = multiplyHighUnsigned(cbr, t);
+        long vhl = multiplyHighUnsigned(cb - (1L << D - 1), t);
+        long vhr = multiplyHighUnsigned(cb + (1L << D - 1), t);
         long shH = vh >>> p;
         long vhu = vh + 2;
         for (int g = H - G; g >= 0; --g) {
