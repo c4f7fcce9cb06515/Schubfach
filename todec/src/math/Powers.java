@@ -97,7 +97,7 @@ final class Powers {
 
     static {
         /*
-        Fully initializes the pow5 and pow10 array and partial initializes
+        Fully initializes the pow5 and pow10 array and partially initializes
         pow5n, which will be populated lazily, as need arises.
          */
         pow5n = new Natural[MAX_POW_5_N_EXP + 1];
