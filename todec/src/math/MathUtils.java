@@ -21,25 +21,22 @@
 
 package math;
 
-import static math.DoubleToDecimal.Double.c;
-import static math.DoubleToDecimal.Double.q;
-
 final class MathUtils {
 
     private static final int I = Integer.SIZE;
     private static final long MASK_I = (1L << I) - 1;
 
     /*
-    The doubles below are expressed in hex notation to avoid possible anomalies
-    during decimal tokenization. Hex tokenization is assumed to be completely
-    reliable, as it is simpler from a mathematical perspective.
+    LOG_10_2_C = floor(log10(2) * 2^LOG_10_2_Q)
      */
+    private static final long LOG_10_2_C = 661_971_961_083L;
+    private static final int LOG_10_2_Q = 41;
 
-    // The double closest to log10(2), 0.3010299956639812 in decimal
-    private static final double LOG_10_2 = 0x1.34413509F79FFp-2;
-
-    // The double closest to log2(10), 3.321928094887362 in decimal
-    private static final double LOG_2_10 = 0x1.A934F0979A371p1;
+    /*
+    LOG_2_10_C = floor(log2(10) * 2^LOG_2_10_Q)
+     */
+    private static final long LOG_2_10_C = 3_652_498_566_964L;
+    private static final int LOG_2_10_Q = 40;
 
     /**
      * The minimum exponent for {@link #floorPow10d(int)}
@@ -56,48 +53,26 @@ final class MathUtils {
     private MathUtils() {
     }
 
-    /*
-    This implementation is simple but is restricted to its usage here, when
-    the assumptions below hold.
-
-    It assumes
-        v = 0 (thus c = 0) or 0 <= -q < Long.SIZE
-
-    Also note that for v < 0
-        floor(v) = -ceil(-v)
-     */
-    private static int floor(double v) {
-        if (v >= 0) {
-            long bits = java.lang.Double.doubleToRawLongBits(v);
-            return (int) (c(bits) >>> -q(bits));
-        }
-        long bits = java.lang.Double.doubleToRawLongBits(-v);
-        int q = q(bits);
-        return -(int) (c(bits) + (1L << -q) - 1 >>> -q);
-    }
-
     /**
      * Returns the integer <i>k</i> such that 10<sup><i>k</i>-1</sup> &le;
      * 2<sup>{@code e}</sup> &lt; 10<sup><i>k</i></sup>.
      * <p>
-     * The result is correct when -198'096'464 &le; {@code e} &le;
-     * 146'964'307.
+     * The result is correct when |{@code e}| &le; 5_456_721.
      * Otherwise the result may or may not be correct.
      */
     static int ord10pow2(int e) {
-        return floor(e * LOG_10_2) + 1;
+        return (int) (e * LOG_10_2_C >> LOG_10_2_Q) + 1;
     }
 
     /**
      * Returns the integer <i>k</i> such that 2<sup><i>k</i>-1</sup> &le;
      * 10<sup>{@code e}</sup> &lt; 2<sup><i>k</i></sup>.
      * <p>
-     * The result is correct when -44'240'664 &le; {@code e} &le;
-     * 59'632'977.
+     * The result is correct when |{@code e}| &le; 1_838_394.
      * Otherwise the result may or may not be correct.
      */
     static int ord2pow10(int e) {
-        return floor(e * LOG_2_10) + 1;
+        return (int) (e * LOG_2_10_C >> LOG_2_10_Q) + 1;
     }
 
     /**
@@ -107,26 +82,17 @@ final class MathUtils {
      * <p>
      * Both {@code x} and {@code y} as well as the result are interpreted as
      * unsigned {@code long}s.
+     * Both {@code x} and {@code y} must be negative, i.e., as unsigned they
+     * must both meet x, y &ge; 2<sup>{@link Long#SIZE}-1</sup>.
      */
     static long multiplyHighUnsigned(long x, long y) {
         /*
-        Unfortunately, the plain version of Karatsuba cannot be applied here:
-        the mixed product would overflow with unrecoverable loss of bits.
-        Thus, the plain paper-and-pencil scheme requiring 4 long
-        multiplications is used.
-
-        This could be a good candidate a for JIT compiler intrinsic.
-         */
-        final long x1 = x >>> I;
-        final long x0 = x & MASK_I;
-        final long y1 = y >>> I;
-        final long y0 = y & MASK_I;
-        final long x1y0 = x1 * y0;
-        final long x0y1 = x0 * y1;
-        return x1 * y1 +
-                (x0y1 >>> I) +
-                (x1y0 >>> I) +
-                ((x0y1 & MASK_I) + (x1y0 & MASK_I) + (x0 * y0 >>> I) >>> I);
+        Math.multiplyHigh() is annotated as intrinsic. However, it assumes
+        signed arguments.
+        To make it work when x and y are unsigned and greater or equal to
+        2^63, a correction is applied. Callers must ensure this.
+        */
+        return Math.multiplyHigh(x, y) + x + y;
     }
 
     /**
