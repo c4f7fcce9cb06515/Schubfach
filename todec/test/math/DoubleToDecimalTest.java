@@ -28,13 +28,13 @@ import java.util.Random;
 import static java.lang.Math.scalb;
 import static junit.framework.TestCase.*;
 import static math.DecimalChecker.isCorrect;
-import static math.DoubleToDecimal.Double.E_MAX_VALUE;
-import static math.DoubleToDecimal.Double.E_MIN_VALUE;
+import static math.DoubleToDecimal.Double.*;
 
 public class DoubleToDecimalTest {
 
     private String toDecimal(double v) {
         String s = DoubleToDecimal.toString(v);
+//        String s = Double.toString(v);
         assertTrue(isCorrect(v, s));
         return s;
     }
@@ -160,33 +160,33 @@ public class DoubleToDecimalTest {
     private static final int[] PaxsonExponents = {
             -342,
             -824,
-            237,
-            72,
-            99,
-            726,
+             237,
+              72,
+              99,
+             726,
             -456,
-            -57,
-            376,
-            377,
-            93,
-            710,
-            709,
-            117,
-            -1,
+             -57,
+             376,
+             377,
+              93,
+             710,
+             709,
+             117,
+              -1,
             -707,
             -381,
-            721,
+             721,
             -828,
             -345,
-            202,
+             202,
             -473,
 
-            952,
-            535,
-            534,
+             952,
+             535,
+             534,
             -957,
             -144,
-            363,
+             363,
             -169,
             -853,
             -780,
@@ -196,12 +196,12 @@ public class DoubleToDecimalTest {
             -249,
             -250,
             -251,
-            548,
-            164,
-            665,
-            690,
-            588,
-            272,
+             548,
+             164,
+             665,
+             690,
+             588,
+             272,
             -448,
     };
 
@@ -247,7 +247,7 @@ public class DoubleToDecimalTest {
     @Test
     public void testRandom() {
         Random r = new Random();
-        for (int i = 0; i < 10_000; ++i) {
+        for (int i = 0; i < 100_000; ++i) {
             toDecimal(Double.longBitsToDouble(r.nextLong()));
         }
     }
@@ -259,7 +259,7 @@ public class DoubleToDecimalTest {
     @Test
     public void testRandomUnit() {
         Random r = new Random();
-        for (int i = 0; i < 10_000; ++i) {
+        for (int i = 0; i < 100_000; ++i) {
             toDecimal(r.nextLong() % 1_000_000_000_000_000L);
         }
     }
@@ -270,7 +270,7 @@ public class DoubleToDecimalTest {
     @Test
     public void testRandomMilli() {
         Random r = new Random();
-        for (int i = 0; i < 10_000; ++i) {
+        for (int i = 0; i < 100_000; ++i) {
             toDecimal(r.nextLong() % 1_000_000_000_000_000_000L / 1e3);
         }
     }
@@ -281,8 +281,8 @@ public class DoubleToDecimalTest {
     @Test
     public void testRandomMicro() {
         Random r = new Random();
-        for (int i = 0; i < 10_000; ++i) {
-            toDecimal(r.nextLong() / 1e6);
+        for (int i = 0; i < 100_000; ++i) {
+            toDecimal((r.nextLong() & 0x7FFF_FFFF_FFFF_FFFFL) / 1e6);
         }
     }
 

@@ -24,6 +24,7 @@ package math;
 import java.io.IOException;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import static math.MathUtils.*;
 
 class DecimalChecker {
 
@@ -232,9 +233,8 @@ class DecimalChecker {
         int r = -b.scale();
 
         // Determine the number of digits in d
-        int len2 = Long.SIZE - Long.numberOfLeadingZeros(d);
-        int len10 = MathUtils.ord10pow2(len2) - 1;
-        if (d >= Powers.pow10[len10]) {
+        int len10 = ord10pow2(Long.SIZE - Long.numberOfLeadingZeros(d)) - 1;
+        if (d >= pow10[len10]) {
             len10 += 1;
         }
 
