@@ -23,29 +23,21 @@ package math;
 
 final class MathUtils {
 
-    /*
-    LOG_10_2_C = floor(log10(2) * 2^LOG_10_2_Q)
-     */
+    // LOG_10_2_C = floor(log10(2) * 2^LOG_10_2_Q)
     private static final long LOG_10_2_C = 661_971_961_083L;
     private static final int LOG_10_2_Q = 41;
 
-    /*
-    LOG_2_10_C = floor(log2(10) * 2^LOG_2_10_Q)
-     */
+    // LOG_2_10_C = floor(log2(10) * 2^LOG_2_10_Q)
     private static final long LOG_2_10_C = 913_124_641_741L;
     private static final int LOG_2_10_Q = 38;
 
-    /*
-    The minimum exponent for ceilPow5dHigh(int)
-     */
+    // The minimum exponent for ceilPow5dHigh(int)
     private static final int MIN_EXP = -292;
 
     private MathUtils() {
     }
 
-    /*
-    pow10[i] = 10^i, 0 <= i <= H
-     */
+    // pow10[i] = 10^i, 0 <= i <= H
     static final long[] pow10 = {
         1L,
         10L,
@@ -91,13 +83,13 @@ final class MathUtils {
 
     /**
      * Let 5<sup>{@code e}</sup> = <i>d</i> &middot; 2<sup><i>r</i></sup>,
-     * for integer <i>r</i> and real <i>d</i> meeting
+     * for the unique pair of integer <i>r</i> and real <i>d</i> meeting
      * 2<sup>125</sup> &le; d &lt; 2<sup>126</sup>.
      * Further, let <i>c</i> = &#x2308;<i>d</i>&#x2309;.
      * Split <i>c</i> into the higher 63 bits <i>c</i><sub>1</sub> and
      * the lower 63 bits <i>c</i><sub>0</sub>. Thus,
      * <i>c</i><sub>1</sub> =
-     * &#x2330a;<i>c</i> &middot; 2<sup>-63</sup>&#x230b;
+     * &#x230a;<i>c</i> &middot; 2<sup>-63</sup>&#x230b;
      * and
      * <i>c</i><sub>0</sub> =
      * <i>c</i> - <i>c</i><sub>1</sub> &middot; 2<sup>63</sup>.

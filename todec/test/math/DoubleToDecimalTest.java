@@ -28,13 +28,11 @@ import java.util.Random;
 import static java.lang.Math.scalb;
 import static junit.framework.TestCase.*;
 import static math.DecimalChecker.isCorrect;
-import static math.DoubleToDecimal.Double.*;
 
 public class DoubleToDecimalTest {
 
     private String toDecimal(double v) {
         String s = DoubleToDecimal.toString(v);
-//        String s = Double.toString(v);
         assertTrue(isCorrect(v, s));
         return s;
     }
@@ -55,12 +53,12 @@ public class DoubleToDecimalTest {
     }
 
     /*
-    A few powers of 10 are incorrectly rendered by the JDK.
+    A few "powers of 10" are incorrectly rendered by the JDK.
     The rendering is either too long or it is not the closest decimal.
      */
     @Test
     public void testPowersOf10() {
-        for (int e = E_MIN_VALUE; e <= E_MAX_VALUE; ++e) {
+        for (int e = -323; e <= 309; ++e) {
             toDecimal(Double.parseDouble("1e" + e));
         }
     }
