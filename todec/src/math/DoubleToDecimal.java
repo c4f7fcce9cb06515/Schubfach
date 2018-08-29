@@ -24,104 +24,37 @@ package math;
 import static java.lang.Double.*;
 import static java.lang.Long.numberOfLeadingZeros;
 import static math.MathUtils.*;
-import static math.DoubleToDecimal.Double.*;
 import static java.lang.Math.multiplyHigh;
 
 /**
  * This class exposes a method to render a {@code double} as a string.
  */
 final public class DoubleToDecimal {
-    /**
-     * Exposes some constants related to the IEEE 754-2008 breakdown of
-     * {@code double}s and some extractors suited for finite positive values.
-     */
-    static final class Double {
 
-        /**
-         * Precision of normal values in bits.
-         */
-        private static final int P = 53;
+    // Precision of normal values in bits.
+    private static final int P = 53;
 
-        /**
-         * Length in bits of the exponent field.
-         */
-        private static final int W = (java.lang.Double.SIZE - 1) - (P - 1);
+    // Length in bits of the exponent field.
+    private static final int W = (Double.SIZE - 1) - (P - 1);
 
-        /**
-         * Minimum value of the exponent.
-         */
-        static final int Q_MIN = (-1 << W - 1) - P + 3;
+    // Minimum value of the exponent.
+    private static final int Q_MIN = (-1 << W - 1) - P + 3;
 
-        /**
-         * Minimum value of the coefficient of a normal value.
-         */
-        static final long C_MIN = 1L << P - 1;
+    // Minimum value of the coefficient of a normal value.
+    private static final long C_MIN = 1L << P - 1;
 
-        /**
-         * H = min {n integer | 10^(n-1) > 2^P}
-         */
-        static final int H = 17;
+    // H = min {n integer | 10^(n-1) > 2^P}
+    private static final int H = 17;
 
-        /**
-         * The integer <i>e</i> such that
-         * 10<sup><i>e</i>-1</sup> &le; {@link java.lang.Double#MIN_VALUE}
-         * &lt; 10<sup><i>e</i></sup>.
-         */
-        static final int E_MIN_VALUE = -323;
+    // Mask to extract the IEEE 754-2008 biased exponent.
+    private static final int BQ_MASK = (1 << W) - 1;
 
-        /**
-         * The integer <i>e</i> such that
-         * 10<sup><i>e</i>-1</sup> &le; {@link java.lang.Double#MAX_VALUE}
-         * &lt; 10<sup><i>e</i></sup>.
-         */
-        static final int E_MAX_VALUE = 309;
-
-        // Mask to extract the IEEE 754-2008 biased exponent.
-        private static final int BQ_MASK = (1 << W) - 1;
-
-        // Mask to extract the IEEE 754-2008 fraction bits.
-        private static final long T_MASK = (1L << P - 1) - 1;
-
-        private Double() {
-        }
-
-        private static int bq(long bits) {
-            return (int) (bits >>> P - 1) & BQ_MASK;
-        }
-
-        /**
-         * Given the {@code bits} of a finite positive {@code double},
-         * returns <i>q</i> described in {@link java.lang.Double}.
-         */
-        static int q(long bits) {
-            int bq = bq(bits);
-            if (bq > 0) {
-                return Q_MIN - 1 + bq;
-            }
-            return Q_MIN;
-        }
-
-        /**
-         * Given the {@code bits} of a finite positive {@code double},
-         * returns <i>c</i> described in {@link java.lang.Double}.
-         */
-        static long c(long bits) {
-            int bq = bq(bits);
-            long t = bits & T_MASK;
-            if (bq > 0) {
-                return C_MIN | t;
-            }
-            return t;
-        }
-
-    }
+    // Mask to extract the IEEE 754-2008 fraction bits.
+    private static final long T_MASK = (1L << P - 1) - 1;
 
     // used in the left-to-right extraction of the digits
     private static final int LTR = 28;
     private static final int MASK_LTR = (1 << LTR) - 1;
-
-    // MAX_SIGNIFICAND = 10^H
-    private static final long MAX_SIGNIFICAND = 100_000_000_000_000_000L;
 
     private static final long MSK_63 = (1L << Long.SIZE - 1) - 1;
 
@@ -137,7 +70,9 @@ final public class DoubleToDecimal {
     where there are H digits d
      */
     private final char[] buf = new char[H + 7];
-    private int index; // index of rightmost valid character
+
+    // index of rightmost valid character
+    private int index;
 
     private DoubleToDecimal() {
     }
@@ -185,7 +120,7 @@ final public class DoubleToDecimal {
      * <p>The selected decimal <i>d</i> is then formatted as a string.
      * If <i>d</i> &lt; 0, the first character of the string is the sign
      * '{@code -}'. Let |<i>d</i>| = <i>m</i> &middot; 10<sup><i>k</i></sup>,
-     * for the unique integer <i>k</i> and real <i>m</i> meeting
+     * for the unique pair of integer <i>k</i> and real <i>m</i> meeting
      * 1 &le; <i>m</i> &lt; 10. Also, let the decimal expansion of <i>m</i> be
      * <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&hellip;<!--
      * --><i>m</i><sub><i>i</i></sub>,
@@ -195,8 +130,8 @@ final public class DoubleToDecimal {
      *     0.0&hellip;0<i>m</i><sub>1</sub>&hellip;<!--
      *     --><i>m</i><sub><i>i</i></sub>,
      *     where there are exactly -<i>k</i> leading zeroes before
-     *     <i>m</i><sub>1</sub>, including the zero before the decimal point;
-     *     for example, {@code "0.01234"}.
+     *     <i>m</i><sub>1</sub>, including the zero to the left of the
+     *     decimal point; for example, {@code "0.01234"}.
      *     <li>Case 0 &le; <i>k</i> &lt; 7:
      *     <ul>
      *         <li>Subcase <i>i</i> &lt; <i>k</i> + 2:
@@ -204,13 +139,13 @@ final public class DoubleToDecimal {
      *         <i>m</i><sub>1</sub>&hellip;<!--
      *         --><i>m</i><sub><i>i</i></sub>0&hellip;0.0,
      *         where there are exactly <i>k</i> + 2 - <i>i</i> trailing zeroes
-     *         after <i>m</i><sub><i>i</i></sub>, including the zero after
-     *         the decimal point; for example, {@code "1200.0"}.
+     *         after <i>m</i><sub><i>i</i></sub>, including the zero to the
+     *         right of the decimal point; for example, {@code "1200.0"}.
      *         <li>Subcase <i>i</i> &ge; <i>k</i> + 2:
      *         |<i>d</i>| is formatted as
      *         <i>m</i><sub>1</sub>&hellip;<i>m</i><sub><i>k</i>+1</sub>.<!--
      *         --><i>m</i><sub><i>k</i>+2</sub>&hellip;<!--
-     *         --><i>m</i><sub><i>i</i></sub>; for example, {@code "1234.567"}.
+     *         --><i>m</i><sub><i>i</i></sub>; for example, {@code "1234.32"}.
      *     </ul>
      *     <li>Case <i>k</i> &lt; -3 or <i>k</i> &ge; 7:
      *     computerized scientific notation is used to format |<i>d</i>|,
@@ -223,7 +158,7 @@ final public class DoubleToDecimal {
      *         <li>Subcase <i>i</i> > 1: |<i>d</i>| is formatted as
      *         <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&hellip;<!--
      *         --><i>m</i><sub><i>i</i></sub>E<i>k</i>;
-     *         for example, {@code "1.2345E-67"}.
+     *         for example, {@code "1.234E-32"}.
      *     </ul>
      *  </ul>
      *
@@ -260,12 +195,20 @@ final public class DoubleToDecimal {
         if (bits < 0) {
             append('-');
         }
-        return toDecimal(q(bits), c(bits));
+        int bq = (int) (bits >>> P - 1) & BQ_MASK;
+        int q;
+        long c;
+        if (bq > 0) {
+            q = Q_MIN - 1 + bq;
+            c = C_MIN | bits & T_MASK;
+        } else {
+            q = Q_MIN;
+            c = bits & T_MASK;
+        }
+        return toDecimal(q, c);
     }
 
-    /*
-    Renders v = c * 2^q, where v is the absolute value of the original double.
-     */
+    // Let v = c * 2^q be the absolute value of the original double. Renders v.
     private String toDecimal(int q, long c) {
         /*
         out = 0, if the boundaries of the rounding interval are included
@@ -287,16 +230,11 @@ final public class DoubleToDecimal {
         long mask = (1L << 63 - ord2alpha) - 1;
         long threshold = 1L << 62 - ord2alpha;
 
-        /*
-        See the javadoc for ceilPow5dHigh() and ceilPow5dLow()
-         */
+        // pow5 = pow51*2^63 + pow50
         long pow51 = ceilPow5dHigh(-k);
         long pow50 = ceilPow5dLow(-k);
 
-        /*
-        Let p = p2 * 2^126 + p1 * 2^63 + p0 and pow5 = pow51 * 2^63 + pow50:
-        then p = pow5 * cb
-         */
+        // p = p2*2^126 + p1*2^63 + p0 and p = pow5 * cb
         long x0 = pow50 * cb;
         long x1 = multiplyHigh(pow50, cb);
         long y0 = pow51 * cb;
@@ -305,12 +243,12 @@ final public class DoubleToDecimal {
         long p0 = x0 & MSK_63;
         long p1 = z & MSK_63;
         long p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
-        long vn = p1 >>> 62 - ord2alpha | p2 << 1 + ord2alpha;
+        long vn = p2 << 1 + ord2alpha | p1 >>> 62 - ord2alpha;
         if ((p1 & mask) != 0 || p0 >= threshold) {
             vn |= 1;
         }
 
-        // Similarly as above, p = pow5 * cbl
+        // Similarly as above, with p = pow5 * cbl
         x0 = pow50 * cbl;
         x1 = multiplyHigh(pow50, cbl);
         y0 = pow51 * cbl;
@@ -319,12 +257,12 @@ final public class DoubleToDecimal {
         p0 = x0 & MSK_63;
         p1 = z & MSK_63;
         p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
-        long vnl = p1 >>> 63 - ord2alpha | p2 << ord2alpha;
+        long vnl = p2 << ord2alpha | p1 >>> 63 - ord2alpha;
         if ((p1 & mask) != 0 || p0 >= threshold) {
             vnl |= 1;
         }
 
-        // Similarly as above, p = pow5 * cbr
+        // Similarly as above, with p = pow5 * cbr
         x0 = pow50 * cbr;
         x1 = multiplyHigh(pow50, cbr);
         y0 = pow51 * cbr;
@@ -333,7 +271,7 @@ final public class DoubleToDecimal {
         p0 = x0 & MSK_63;
         p1 = z & MSK_63;
         p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
-        long vnr = p1 >>> 63 - ord2alpha | p2 << ord2alpha;
+        long vnr = p2 << ord2alpha | p1 >>> 63 - ord2alpha;
         if ((p1 & mask) != 0 || p0 >= threshold) {
             vnr |= 1;
         }
@@ -346,26 +284,26 @@ final public class DoubleToDecimal {
             boolean win10 = (t10 << 1) + out <= vnr;
             if (uin10 | win10) {
                 if (!win10) {
-                    return toCharsE(s10, k);
+                    return toChars(s10, k);
                 }
                 if (!uin10) {
-                    return toCharsE(t10, k);
+                    return toChars(t10, k);
                 }
-                // This is possible only for powers of 2
+                // This is possible only for uneven spacing
                 // when Rv may be wider than 10^{r+1}
                 if (s10 % 100 == 0) {
-                    return toCharsE(s10, k);
+                    return toChars(s10, k);
                 }
                 if (t10 % 100 == 0) {
-                    return toCharsE(t10, k);
+                    return toChars(t10, k);
                 }
                 long cmp10 = vn - (s10 + t10 << 1);
                 if (cmp10 < 0) {
-                    return toCharsE(s10, k);
+                    return toChars(s10, k);
                 }
-                // cmp10 == 0 doesn't happen for powers of two
+                // cmp10 == 0 doesn't happen for uneven spacing
 //                assert cmp10 > 0;
-                return toCharsE(t10, k);
+                return toChars(t10, k);
             }
         } else if (s < 10) {
             /*
@@ -373,8 +311,8 @@ final public class DoubleToDecimal {
             the specification: Double.MIN_VALUE or 2 * Double.MIN_VALUE
              */
             switch ((int) s) {
-                case 4: return toCharsE(49, -325); // 4.9 * 10^-324
-                case 9: return toCharsE(99, -325); // 9.9 * 10^-324
+                case 4: return toChars(49, -325); // 4.9 * 10^-324
+                case 9: return toChars(99, -325); // 9.9 * 10^-324
             }
         }
         long t = s + 1;
@@ -382,35 +320,26 @@ final public class DoubleToDecimal {
         boolean win = (t << 1) + out <= vnr;
 //        assert uin || win; // because 10^r <= 2^q
         if (!win) {
-            return toCharsE(s, k);
+            return toChars(s, k);
         }
         if (!uin) {
-            return toCharsE(t, k);
+            return toChars(t, k);
         }
         long cmp = vn - (s + t << 1);
         if (cmp < 0) {
-            return toCharsE(s, k);
+            return toChars(s, k);
         }
         if (cmp > 0) {
-            return toCharsE(t, k);
+            return toChars(t, k);
         }
         if ((s & 1) == 0) {
-            return toCharsE(s, k);
+            return toChars(s, k);
         }
-        return toCharsE(t, k);
-    }
-
-    private String toCharsE(long f, int k) {
-        int ord10 = ord10pow2(Long.SIZE - numberOfLeadingZeros(f));
-        if (f < pow10[ord10 - 1]) {
-            ord10 -= 1;
-        }
-        return toChars(f * pow10[H - ord10], k + ord10);
+        return toChars(t, k);
     }
 
     /*
-    The method formats the number f * 10^(e-H), where
-        10^(H-1) <= f <= 10^H
+    The method formats the number f * 10^e
 
     Division is avoided altogether by replacing it with multiplications
     and shifts. This has a noticeable impact on performance.
@@ -422,22 +351,26 @@ final public class DoubleToDecimal {
     Also, once the quotient is known, the remainder is computed indirectly.
      */
     private String toChars(long f, int e) {
-        int h; // the most significant digit of f
-        int m; // the middle 8 digits of f
-        int l; // the 8 least significant digits of f
-        if (f != MAX_SIGNIFICAND) {
-            // hm = f / 100_000_000L; l = f % 100_000_000L;
-            long hm = multiplyHigh(f, 48_357_032_784_585_167L) >>> 18;
-            l = (int) (f - 100_000_000L * hm);
-            // h = hm / 100_000_000L; m = hm % 100_000_000L;
-            h = (int) (hm * 1_441_151_881L >>> 57);
-            m = (int) (hm - 100_000_000 * h);
-        } else {
-            // This might happen for doubles close or equal to powers of 10
-            h = 1;
-            m = l = 0;
-            e += 1;
+        // Normalize f to lie in the f-independent interval [10^(H-1), 10^H)
+        int ord10 = ord10pow2(Long.SIZE - numberOfLeadingZeros(f));
+        if (f < pow10[ord10 - 1]) {
+            ord10 -= 1;
         }
+        // 10^(ord10-1) <= f < 10^ord10
+        f *= pow10[H - ord10];
+        e += ord10;
+
+        /*
+        Split the H = 17 digits of f into:
+            h = the most significant digit of f
+            m = the next 8 most significant digits of f
+            l = the last 8, least significant digits of f
+         */
+        long hm = multiplyHigh(f, 48_357_032_784_585_167L) >>> 18;
+        int l = (int) (f - 100_000_000L * hm);
+        int h = (int) (hm * 1_441_151_881L >>> 57);
+        int m = (int) (hm - 100_000_000 * h);
+
         /*
         The left-to-right digits generation in toChars_* is inspired by
         - Bouvier, Zimmermann, "Division-Free Binary-to-Decimal Conversion"
@@ -451,10 +384,7 @@ final public class DoubleToDecimal {
         return toChars_3(h, m, l, e);
     }
 
-    /*
-    0 < e <= 7
-    Plain format without leading zeroes.
-     */
+    // 0 < e <= 7: plain format without leading zeroes.
     private String toChars_1(int h, int m, int l, int e) {
         appendDigit(h);
         // y = (m + 1) * 2^LTR / 100_000_000 - 1;
@@ -478,10 +408,7 @@ final public class DoubleToDecimal {
         return charsToString();
     }
 
-    /*
-    -3 < e <= 0
-    Plain format with leading zeroes.
-     */
+    // -3 < e <= 0: plain format with leading zeroes.
     private String toChars_2(int h, int m, int l, int e) {
         appendDigit(0);
         append('.');
@@ -494,10 +421,7 @@ final public class DoubleToDecimal {
         return charsToString();
     }
 
-    /*
-    e <= -3 | e > 7
-    Computerized scientific notation
-     */
+    // -3 >= e | e > 7: computerized scientific notation
     private String toChars_3(int h, int m, int l, int e) {
         appendDigit(h);
         append('.');
