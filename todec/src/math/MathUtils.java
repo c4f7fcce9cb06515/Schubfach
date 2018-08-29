@@ -97,9 +97,10 @@ final class MathUtils {
      * This method returns <i>c</i><sub>1</sub> while
      * {@link #ceilPow5dLow(int)} return <i>c</i><sub>0</sub>.
      * <p>
-     * The exponent <i>r</i> is computed as
-     * XXX
+     * If needed, the exponent <i>r</i> can be computed as
+     * <i>r</i> = {@code ord2Pow10(e) - e - 126}
      *
+     * @param e must lie in [-292, 324]
      */
     static long ceilPow5dHigh(int e) {
         return ceilPow5d[e - MIN_EXP << 1];
