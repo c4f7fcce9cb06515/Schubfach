@@ -155,7 +155,7 @@ final public class DoubleToDecimal {
      *     <ul>
      *         <li>Subcase <i>i</i> = 1: |<i>d</i>| is formatted as
      *         <i>m</i><sub>1</sub>.0E<i>k</i>; for example, {@code "2.0E23"}.
-     *         <li>Subcase <i>i</i> > 1: |<i>d</i>| is formatted as
+     *         <li>Subcase <i>i</i> &gt; 1: |<i>d</i>| is formatted as
      *         <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&hellip;<!--
      *         --><i>m</i><sub><i>i</i></sub>E<i>k</i>;
      *         for example, {@code "1.234E-32"}.
