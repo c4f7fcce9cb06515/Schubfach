@@ -219,14 +219,24 @@ final public class DoubleToDecimal {
         successor(v) = cbr * 2^qb
          */
         int out = (int) c & 0x1;
-        int d = c != C_MIN | q == Q_MIN ? 1 : 2;
-        int qb = q - d;
-        long cb = c << d;
-        long cbr = cb + d;
-        long cbl = cb - 1;
 
-        int k = ord10pow2(qb + 1) - 1;
-        int ord2alpha = qb + 1 + ord2pow10(-k);
+        long cb;
+        long cbr;
+        long cbl;
+        int k;
+        int ord2alpha;
+        if (c != C_MIN | q == Q_MIN) {
+            cb = c << 1;
+            cbr = cb + 1;
+            k = ord10pow2(q) - 1;
+            ord2alpha = q + ord2pow10(-k);
+        } else {
+            cb = c << 2;
+            cbr = cb + 2;
+            k = ord10ThreeQuartersPow2(q) - 1;
+            ord2alpha = q - 1 + ord2pow10(-k);
+        }
+        cbl = cb - 1;
         long mask = (1L << 63 - ord2alpha) - 1;
         long threshold = 1L << 62 - ord2alpha;
 
@@ -289,21 +299,6 @@ final public class DoubleToDecimal {
                 if (!uin10) {
                     return toChars(t10, k);
                 }
-                // This is possible only for uneven spacing
-                // when Rv may be wider than 10^{r+1}
-                if (s10 % 100 == 0) {
-                    return toChars(s10, k);
-                }
-                if (t10 % 100 == 0) {
-                    return toChars(t10, k);
-                }
-                long cmp10 = vn - (s10 + t10 << 1);
-                if (cmp10 < 0) {
-                    return toChars(s10, k);
-                }
-                // cmp10 == 0 doesn't happen for uneven spacing
-//                assert cmp10 > 0;
-                return toChars(t10, k);
             }
         } else if (s < 10) {
             /*
@@ -365,6 +360,11 @@ final public class DoubleToDecimal {
             h = the most significant digit of f
             m = the next 8 most significant digits of f
             l = the last 8, least significant digits of f
+
+        Pictorially, the selected decimal to format as String is
+            0.hmmmmmmmmllllllll * 10^e
+        Depending on the value of e, plain or computerized scientific notation
+        is used.
          */
         long hm = multiplyHigh(f, 48_357_032_784_585_167L) >>> 18;
         int l = (int) (f - 100_000_000L * hm);
