@@ -10,7 +10,7 @@
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A_10 PARTICULAR PURPOSE.  See the GNU General Public License
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * version 2 for more details (a copy is included in the LICENSE file that
  * accompanied this code).
  *
@@ -21,6 +21,10 @@
 
 package math;
 
+/**
+ * @author Raffaello Giulietti
+ * @since 12
+ */
 final class MathUtils {
 
     // C_10 = floor(log10(2) * 2^Q_10), A_10 = floor(log10(3/4) * 2^Q_10)
@@ -67,6 +71,10 @@ final class MathUtils {
      * <p>
      * The result is correct when |{@code e}| &le; 5_456_721.
      * Otherwise the result may or may not be correct.
+     *
+     * @param e The exponent of 2, which should meet
+     *          |{@code e}| &le; 5_456_721 for safe results.
+     * @return &lfloor;log<sub>10</sub>2<sup>{@code e}</sup>&rfloor;.
      */
     static int flog10pow2(int e) {
         return (int) (e * C_10 >> Q_10);
@@ -80,6 +88,11 @@ final class MathUtils {
      * The result is correct when
      * -2_956_395 &le; |{@code e}| &le; 2_500_325.
      * Otherwise the result may or may not be correct.
+     *
+     * @param e The exponent of 2, which should meet
+     *          -2_956_395 &le; |{@code e}| &le; 2_500_325 for safe results.
+     * @return &lfloor;log<sub>10</sub>(3/4 &middot;
+     * 2<sup>{@code e}</sup>)&rfloor;.
      */
     static int flog10threeQuartersPow2(int e) {
         return (int) ((e * C_10 + A_10) >> Q_10);
@@ -92,6 +105,10 @@ final class MathUtils {
      * <p>
      * The result is correct when |{@code e}| &le; 1_838_394.
      * Otherwise the result may or may not be correct.
+     *
+     * @param e The exponent of 10, which should meet
+     *          |{@code e}| &le; 1_838_394 for safe results.
+     * @return &lfloor;log<sub>2</sub>10<sup>{@code e}</sup>&rfloor;.
      */
     static int flog2pow10(int e) {
         return (int) (e * C_2 >> Q_2);
@@ -111,20 +128,26 @@ final class MathUtils {
      * <i>c</i> - <i>c</i><sub>1</sub> &middot; 2<sup>63</sup>.
      * <p>
      * This method returns <i>c</i><sub>1</sub> while
-     * {@link #ceilPow5dLow(int)} return <i>c</i><sub>0</sub>.
+     * {@link #ceilPow5dLow(int)} returns <i>c</i><sub>0</sub>.
      * <p>
      * If needed, the exponent <i>r</i> can be computed as
-     * <i>r</i> = {@code ord2Pow10(e) - e - 126}
+     * <i>r</i> = {@code flog2pow10(e) - e - 125}
+     * (see {@link #flog2pow10(int)}).
      *
-     * @param e must lie in [-292, 324]
+     * @param e The exponent of 5,
+     *          which must meet -292 &le; {@code e} &le; 324.
+     * @return <i>c</i><sub>1</sub> as described above.
      */
     static long ceilPow5dHigh(int e) {
         return ceilPow5d[e - MIN_EXP << 1];
     }
 
     /**
-     * Returns <i>c</i><sub>0</sub>,
-     * as described in {@link #ceilPow5dHigh(int)}.
+     * Returns <i>c</i><sub>0</sub> as described in {@link #ceilPow5dHigh(int)}.
+     *
+     * @param e The exponent of 5,
+     *          which must meet -292 &le; {@code e} &le; 324.
+     * @return <i>c</i><sub>0</sub> as described in {@link #ceilPow5dHigh(int)}.
      */
     static long ceilPow5dLow(int e) {
         return ceilPow5d[e - MIN_EXP << 1 | 1];

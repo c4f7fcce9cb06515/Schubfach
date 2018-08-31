@@ -28,6 +28,9 @@ import static java.lang.Math.multiplyHigh;
 
 /**
  * This class exposes a method to render a {@code double} as a string.
+
+ * @author Raffaello Giulietti
+ * @since 12
  */
 final public class DoubleToDecimal {
 
@@ -122,12 +125,12 @@ final public class DoubleToDecimal {
      * '{@code -}'. Let |<i>d</i>| = <i>m</i> &middot; 10<sup><i>k</i></sup>,
      * for the unique pair of integer <i>k</i> and real <i>m</i> meeting
      * 1 &le; <i>m</i> &lt; 10. Also, let the decimal expansion of <i>m</i> be
-     * <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&hellip;<!--
+     * <i>m</i><sub>1</sub> . <i>m</i><sub>2</sub> &hellip; <!--
      * --><i>m</i><sub><i>i</i></sub>,
      * with <i>i</i> &ge; 1 and <i>m</i><sub><i>i</i></sub> &ne; 0.
      * <ul>
      *     <li>Case -3 &le; k &lt; 0: |<i>d</i>| is formatted as
-     *     0.0&hellip;0<i>m</i><sub>1</sub>&hellip;<!--
+     *     0 . 0 &hellip; 0<i>m</i><sub>1</sub> &hellip; <!--
      *     --><i>m</i><sub><i>i</i></sub>,
      *     where there are exactly -<i>k</i> leading zeroes before
      *     <i>m</i><sub>1</sub>, including the zero to the left of the
@@ -136,15 +139,15 @@ final public class DoubleToDecimal {
      *     <ul>
      *         <li>Subcase <i>i</i> &lt; <i>k</i> + 2:
      *         |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>&hellip;<!--
-     *         --><i>m</i><sub><i>i</i></sub>0&hellip;0.0,
+     *         <i>m</i><sub>1</sub> &hellip; <!--
+     *         --><i>m</i><sub><i>i</i></sub>0 &hellip; 0 . 0,
      *         where there are exactly <i>k</i> + 2 - <i>i</i> trailing zeroes
      *         after <i>m</i><sub><i>i</i></sub>, including the zero to the
      *         right of the decimal point; for example, {@code "1200.0"}.
      *         <li>Subcase <i>i</i> &ge; <i>k</i> + 2:
      *         |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>&hellip;<i>m</i><sub><i>k</i>+1</sub>.<!--
-     *         --><i>m</i><sub><i>k</i>+2</sub>&hellip;<!--
+     *         <i>m</i><sub>1</sub> &hellip; <i>m</i><sub><i>k</i>+1</sub> .
+     *         <i>m</i><sub><i>k</i>+2</sub> &hellip; <!--
      *         --><i>m</i><sub><i>i</i></sub>; for example, {@code "1234.32"}.
      *     </ul>
      *     <li>Case <i>k</i> &lt; -3 or <i>k</i> &ge; 7:
@@ -154,9 +157,9 @@ final public class DoubleToDecimal {
      *     {@link Integer#toString(int)}.
      *     <ul>
      *         <li>Subcase <i>i</i> = 1: |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>.0E<i>k</i>; for example, {@code "2.0E23"}.
+     *         <i>m</i><sub>1</sub> . 0E<i>k</i>; for example, {@code "2.0E23"}.
      *         <li>Subcase <i>i</i> &gt; 1: |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>.<i>m</i><sub>2</sub>&hellip;<!--
+     *         <i>m</i><sub>1</sub> . <i>m</i><sub>2</sub> &hellip; <!--
      *         --><i>m</i><sub><i>i</i></sub>E<i>k</i>;
      *         for example, {@code "1.234E-32"}.
      *     </ul>

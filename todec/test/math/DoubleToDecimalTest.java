@@ -50,7 +50,12 @@ public class DoubleToDecimalTest {
         toDecimal(Double.MAX_VALUE);
         toDecimal(Double.POSITIVE_INFINITY);
         toDecimal(Double.NaN);
-        // 4 combinations of quiet/signaling NaN with sign zeroed or set
+        /*
+        Quiet NaNs have the most significant bit of the mantissa as 1,
+        while signaling NaNs have it as 0.
+        Exercise the 4 combinations of quiet/signaling NaNs and
+        "positive/negative" NaNs
+         */
         toDecimal(Double.longBitsToDouble(0x7FF8_0000_0000_0001L));
         toDecimal(Double.longBitsToDouble(0x7FF0_0000_0000_0001L));
         toDecimal(Double.longBitsToDouble(0xFFF8_0000_0000_0001L));
