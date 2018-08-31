@@ -50,7 +50,7 @@ public class DoubleToDecimalTest {
         toDecimal(Double.MAX_VALUE);
         toDecimal(Double.POSITIVE_INFINITY);
         toDecimal(Double.NaN);
-        // Combinations of signaling/quiet NaN with sign set or zeroed
+        // 4 combinations of quiet/signaling NaN with sign zeroed or set
         toDecimal(Double.longBitsToDouble(0x7FF8_0000_0000_0001L));
         toDecimal(Double.longBitsToDouble(0x7FF0_0000_0000_0001L));
         toDecimal(Double.longBitsToDouble(0xFFF8_0000_0000_0001L));

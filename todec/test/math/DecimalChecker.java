@@ -233,7 +233,7 @@ class DecimalChecker {
         int r = -b.scale();
 
         // Determine the number of digits in d
-        int len10 = ord10pow2(Long.SIZE - Long.numberOfLeadingZeros(d)) - 1;
+        int len10 = flog10pow2(Long.SIZE - Long.numberOfLeadingZeros(d));
         if (d >= pow10[len10]) {
             len10 += 1;
         }

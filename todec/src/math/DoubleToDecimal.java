@@ -43,20 +43,20 @@ final public class DoubleToDecimal {
     // Minimum value of the coefficient of a normal value.
     private static final long C_MIN = 1L << P - 1;
 
-    // H = min {n integer | 10^(n-1) > 2^P}
-    private static final int H = 17;
-
     // Mask to extract the IEEE 754-2008 biased exponent.
     private static final int BQ_MASK = (1 << W) - 1;
 
     // Mask to extract the IEEE 754-2008 fraction bits.
     private static final long T_MASK = (1L << P - 1) - 1;
 
+    // H = min {n integer | 10^(n-1) > 2^P}
+    private static final int H = 17;
+
     // used in the left-to-right extraction of the digits
     private static final int LTR = 28;
     private static final int MASK_LTR = (1 << LTR) - 1;
 
-    private static final long MSK_63 = (1L << Long.SIZE - 1) - 1;
+    private static final long MASK_63 = (1L << Long.SIZE - 1) - 1;
 
     // for thread-safety, each thread gets its own instance of this class
     private static final ThreadLocal<DoubleToDecimal> threadLocal =
@@ -221,13 +221,13 @@ final public class DoubleToDecimal {
         if (c != C_MIN | q == Q_MIN) {
             cb = c << 1;
             cbr = cb + 1;
-            k = ord10pow2(q) - 1;
-            ord2alpha = q + ord2pow10(-k);
+            k = flog10pow2(q);
+            ord2alpha = q + flog2pow10(-k) + 1;
         } else {
             cb = c << 2;
             cbr = cb + 2;
-            k = ord10ThreeQuartersPow2(q) - 1;
-            ord2alpha = q - 1 + ord2pow10(-k);
+            k = flog10threeQuartersPow2(q);
+            ord2alpha = q + flog2pow10(-k);
         }
         cbl = cb - 1;
         long mask = (1L << 63 - ord2alpha) - 1;
@@ -242,9 +242,9 @@ final public class DoubleToDecimal {
         long x1 = multiplyHigh(pow50, cb);
         long y0 = pow51 * cb;
         long y1 = multiplyHigh(pow51, cb);
-        long z = (x1 << 1 | x0 >>> 63) + (y0 & MSK_63);
-        long p0 = x0 & MSK_63;
-        long p1 = z & MSK_63;
+        long z = (x1 << 1 | x0 >>> 63) + (y0 & MASK_63);
+        long p0 = x0 & MASK_63;
+        long p1 = z & MASK_63;
         long p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
         long vn = p2 << 1 + ord2alpha | p1 >>> 62 - ord2alpha;
         if ((p1 & mask) != 0 || p0 >= threshold) {
@@ -256,9 +256,9 @@ final public class DoubleToDecimal {
         x1 = multiplyHigh(pow50, cbl);
         y0 = pow51 * cbl;
         y1 = multiplyHigh(pow51, cbl);
-        z = (x1 << 1 | x0 >>> 63) + (y0 & MSK_63);
-        p0 = x0 & MSK_63;
-        p1 = z & MSK_63;
+        z = (x1 << 1 | x0 >>> 63) + (y0 & MASK_63);
+        p0 = x0 & MASK_63;
+        p1 = z & MASK_63;
         p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
         long vnl = p2 << ord2alpha | p1 >>> 63 - ord2alpha;
         if ((p1 & mask) != 0 || p0 >= threshold) {
@@ -270,9 +270,9 @@ final public class DoubleToDecimal {
         x1 = multiplyHigh(pow50, cbr);
         y0 = pow51 * cbr;
         y1 = multiplyHigh(pow51, cbr);
-        z = (x1 << 1 | x0 >>> 63) + (y0 & MSK_63);
-        p0 = x0 & MSK_63;
-        p1 = z & MSK_63;
+        z = (x1 << 1 | x0 >>> 63) + (y0 & MASK_63);
+        p0 = x0 & MASK_63;
+        p1 = z & MASK_63;
         p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
         long vnr = p2 << ord2alpha | p1 >>> 63 - ord2alpha;
         if ((p1 & mask) != 0 || p0 >= threshold) {
@@ -332,21 +332,21 @@ final public class DoubleToDecimal {
     Division is avoided altogether by replacing it with multiplications
     and shifts. This has a noticeable impact on performance.
     For more in-depth readings, see for example
-    - Moeller, Granlund, "Improved division by invariant integers"
-    - ridiculous_fish, "Labor of Division (Episode III): Faster Unsigned
+    * Moeller & Granlund, "Improved division by invariant integers"
+    * ridiculous_fish, "Labor of Division (Episode III): Faster Unsigned
         Division by Constants"
 
     Also, once the quotient is known, the remainder is computed indirectly.
      */
     private String toChars(long f, int e) {
         // Normalize f to lie in the f-independent interval [10^(H-1), 10^H)
-        int ord10 = ord10pow2(Long.SIZE - numberOfLeadingZeros(f));
-        if (f < pow10[ord10 - 1]) {
-            ord10 -= 1;
+        int len10 = flog10pow2(Long.SIZE - numberOfLeadingZeros(f));
+        if (f >= pow10[len10]) {
+            len10 += 1;
         }
-        // 10^(ord10-1) <= f < 10^ord10
-        f *= pow10[H - ord10];
-        e += ord10;
+        // 10^(len10-1) <= f < 10^len10
+        f *= pow10[H - len10];
+        e += len10;
 
         /*
         Split the H = 17 digits of f into:
@@ -366,7 +366,7 @@ final public class DoubleToDecimal {
 
         /*
         The left-to-right digits generation in toChars_* is inspired by
-        - Bouvier, Zimmermann, "Division-Free Binary-to-Decimal Conversion"
+        * Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
          */
         if (0 < e && e <= 7) {
             return toChars_1(h, m, l, e);

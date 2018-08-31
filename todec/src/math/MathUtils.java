@@ -10,7 +10,7 @@
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * FITNESS FOR A_10 PARTICULAR PURPOSE.  See the GNU General Public License
  * version 2 for more details (a copy is included in the LICENSE file that
  * accompanied this code).
  *
@@ -23,19 +23,14 @@ package math;
 
 final class MathUtils {
 
-    // TODO review these names
-    // LOG_10_2_C = floor(log10(2) * 2^LOG_10_2_Q)
-    private static final long LOG_10_2_C = 661_971_961_083L;
-    private static final int LOG_10_2_Q = 41;
+    // C_10 = floor(log10(2) * 2^Q_10), A_10 = floor(log10(3/4) * 2^Q_10)
+    private static final int Q_10 = 41;
+    private static final long C_10 = 661_971_961_083L;
+    private static final long A_10 = -274_743_187_321L;
 
-    // LOG_10_3_4_2_C = floor(log10(2) * 2^LOG_10_2_Q)
-    private static final long LOG_10_3_4_2_C = 661_971_961_083L;
-    private static final int LOG_10_3_4_2_Q = 41;
-    private static final long A = -274_743_187_320L;
-
-    // LOG_2_10_C = floor(log2(10) * 2^LOG_2_10_Q)
-    private static final long LOG_2_10_C = 913_124_641_741L;
-    private static final int LOG_2_10_Q = 38;
+    // C_2 = floor(log2(10) * 2^Q_2)
+    private static final int Q_2 = 38;
+    private static final long C_2 = 913_124_641_741L;
 
     // The minimum exponent for ceilPow5dHigh(int)
     private static final int MIN_EXP = -292;
@@ -67,39 +62,39 @@ final class MathUtils {
 
     /**
      * Returns the unique integer <i>k</i> such that
-     * 10<sup><i>k</i>-1</sup> &le; 2<sup>{@code e}</sup>
-     * &lt; 10<sup><i>k</i></sup>.
+     * 10<sup><i>k</i></sup> &le; 2<sup>{@code e}</sup>
+     * &lt; 10<sup><i>k</i>+1</sup>.
      * <p>
      * The result is correct when |{@code e}| &le; 5_456_721.
      * Otherwise the result may or may not be correct.
      */
-    static int ord10pow2(int e) {
-        return (int) (e * LOG_10_2_C >> LOG_10_2_Q) + 1;
+    static int flog10pow2(int e) {
+        return (int) (e * C_10 >> Q_10);
     }
 
     /**
      * Returns the unique integer <i>k</i> such that
-     * 10<sup><i>k</i>-1</sup> &le; 3/4 &middot; 2<sup>{@code e}</sup>
-     * &lt; 10<sup><i>k</i></sup>.
+     * 10<sup><i>k</i></sup> &le; 3/4 &middot; 2<sup>{@code e}</sup>
+     * &lt; 10<sup><i>k</i>+1</sup>.
      * <p>
-     * The result is correct when |{@code e}| &le; 5_456_721.
-     * (// TODO check this)
+     * The result is correct when
+     * -2_956_395 &le; |{@code e}| &le; 2_500_325.
      * Otherwise the result may or may not be correct.
      */
-    static int ord10ThreeQuartersPow2(int e) {
-        return (int) ((e * LOG_10_3_4_2_C + A) >> LOG_10_3_4_2_Q) + 1;
+    static int flog10threeQuartersPow2(int e) {
+        return (int) ((e * C_10 + A_10) >> Q_10);
     }
 
     /**
      * Returns the unique integer <i>k</i> such that
-     * 2<sup><i>k</i>-1</sup> &le; 10<sup>{@code e}</sup>
-     * &lt; 2<sup><i>k</i></sup>.
+     * 2<sup><i>k</i></sup> &le; 10<sup>{@code e}</sup>
+     * &lt; 2<sup><i>k</i>+1</sup>.
      * <p>
      * The result is correct when |{@code e}| &le; 1_838_394.
      * Otherwise the result may or may not be correct.
      */
-    static int ord2pow10(int e) {
-        return (int) (e * LOG_2_10_C >> LOG_2_10_Q) + 1;
+    static int flog2pow10(int e) {
+        return (int) (e * C_2 >> Q_2);
     }
 
     /**
