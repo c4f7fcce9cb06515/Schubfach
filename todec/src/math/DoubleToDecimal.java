@@ -174,38 +174,31 @@ final public class DoubleToDecimal {
     }
 
     private String toDecimal(double v) {
-        // Get rid of NaNs, infinities and zeroes right at the beginning
+        long bits = doubleToRawLongBits(v);
+        int bq = (int) (bits >>> P - 1) & BQ_MASK;
+        if (bq < BQ_MASK) {
+            index = -1;
+            if (bits < 0) {
+                append('-');
+            }
+            if (bq > 0) {
+                return toDecimal(Q_MIN - 1 + bq, C_MIN | bits & T_MASK);
+            }
+            if (bits == 0x0000_0000_0000_0000L) {
+                return "0.0";
+            }
+            if (bits == 0x8000_0000_0000_0000L) {
+                return "-0.0";
+            }
+            return toDecimal(Q_MIN, bits & T_MASK);
+        }
         if (v != v) {
             return "NaN";
         }
         if (v == POSITIVE_INFINITY) {
             return "Infinity";
         }
-        if (v == NEGATIVE_INFINITY) {
-            return "-Infinity";
-        }
-        long bits = doubleToRawLongBits(v);
-        if (bits == 0x0000_0000_0000_0000L) {
-            return "0.0";
-        }
-        if (bits == 0x8000_0000_0000_0000L) {
-            return "-0.0";
-        }
-        index = -1;
-        if (bits < 0) {
-            append('-');
-        }
-        int bq = (int) (bits >>> P - 1) & BQ_MASK;
-        int q;
-        long c;
-        if (bq > 0) {
-            q = Q_MIN - 1 + bq;
-            c = C_MIN | bits & T_MASK;
-        } else {
-            q = Q_MIN;
-            c = bits & T_MASK;
-        }
-        return toDecimal(q, c);
+        return "-Infinity";
     }
 
     // Let v = c * 2^q be the absolute value of the original double. Renders v.
