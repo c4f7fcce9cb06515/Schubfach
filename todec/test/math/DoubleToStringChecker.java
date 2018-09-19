@@ -100,9 +100,7 @@ class DoubleToStringChecker {
             }
 
             // ... and with a shorter number greater than v
-            long cu = c / 10 + 1;
-            if (cu == MathUtils.pow10[len10] ||
-                    BigDecimal.valueOf(cu, -q - 1).doubleValue() == v) {
+            if (BigDecimal.valueOf(c / 10 + 1, -q - 1).doubleValue() == v) {
                 return false;
             }
         }
