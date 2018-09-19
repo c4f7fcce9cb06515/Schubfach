@@ -27,13 +27,14 @@ import java.util.Random;
 
 import static java.lang.Math.scalb;
 import static junit.framework.TestCase.*;
-import static math.DecimalChecker.isCorrect;
 
 public class DoubleToDecimalTest {
 
     private String toDecimal(double v) {
+//        String s = Double.toString(v);
         String s = DoubleToDecimal.toString(v);
-        assertTrue(isCorrect(v, s));
+        boolean ok = new DoubleToStringChecker(v, s).isOK();
+        assertTrue(ok);
         return s;
     }
 

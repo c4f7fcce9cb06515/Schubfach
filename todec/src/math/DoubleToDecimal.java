@@ -30,7 +30,6 @@ import static java.lang.Math.multiplyHigh;
  * This class exposes a method to render a {@code double} as a string.
 
  * @author Raffaello Giulietti
- * @since 12
  */
 final public class DoubleToDecimal {
 
@@ -89,48 +88,60 @@ final public class DoubleToDecimal {
      *     as {@code "NaN"}, regardless of the sign bit.
      *     <li> The infinities +&infin; and -&infin; are rendered as
      *     {@code "Infinity"} and {@code "-Infinity"}, respectively.
-     *     <li> The zeroes +0.0 and -0.0 are rendered as
+     *     <li> The positive and negative zeroes are rendered as
      *     {@code "0.0"} and {@code "-0.0"}, respectively.
      *     <li> Otherwise {@code v} is finite and non-zero.
      *     It is rendered in two stages:
      *     <ul>
-     *         <li> Selection of a decimal: A well-specified non-zero decimal
-     *         <i>d</i> is selected to represent {@code v}.
-     *         <li> Formatting as a string: The decimal <i>d</i> is formatted
-     *         as a string, either in plain or in computerized scientific
-     *         notation, depending on its value.
+     *         <li> <em>Selection of a decimal</em>: A well-specified non-zero
+     *         decimal <i>d</i> is selected to represent {@code v}.
+     *         <li> <em>Formatting as a string</em>: The decimal <i>d</i> is
+     *         formatted as a string, either in plain or in computerized
+     *         scientific notation, depending on its value.
      *     </ul>
      * </ul>
      *
-     * <p>The number <i>d</i> is a decimal having a length <i>i</i> if
-     * |<i>d</i>| = <i>c</i> &middot; 10<sup><i>q</i></sup> for some integers
-     * <i>q</i> and <i>c</i> meeting <i>c</i> &lt; 10<sup><i>i</i></sup>. Note
-     * that if <i>d</i> has some length, then it has any greater length as well.
-     *
-     * <p>Abstractly, the unique decimal <i>d</i> to represent {@code v}
-     * is selected as follows:
+     * <p>The selected decimal <i>d</i> has a length <i>n</i> if it can be
+     * written as <i>d</i> = <i>c</i>&middot;10<sup><i>q</i></sup> for some
+     * integers <i>q</i> and <i>c</i> meeting 10<sup><i>n</i>-1</sup> &le;
+     * |<i>c</i>| &lt; 10<sup><i>n</i></sup>. It has all the following
+     * properties:
      * <ul>
-     *     <li>Among  all decimals that round to {@code v} according to the
-     *     usual round-to-closest rule of IEEE 754 floating-point arithmetic,
-     *     only the ones that have the shortest possible length not less
-     *     than 2 are tentatively selected while the others are discarded.
-     *     <li>Among the tentatively selected ones, only the one closest to
-     *     {@code v} is definitely selected: or if two are equally close to
-     *     {@code v}, the one whose least significant digit is even is
-     *     definitely selected.
+     *     <li> It rounds to {@code v} according to the usual round-to-closest
+     *     rule of IEEE 754 floating-point arithmetic.
+     *     <li> Among the decimals above, it has a length of 2 or more.
+     *     <li> Among all such decimals, it is one of those with the shortest
+     *     length.
+     *     <li> Among the latter ones, it is the one closest to {@code v}. Or
+     *     if there are two that are equally close to {@code v}, it is the one
+     *     whose least significant digit is even.
+     * </ul>
+     * More formally, let <i>d'</i> = <i>c'</i>&middot;10<sup><i>q'</i></sup>
+     * &ne; <i>d</i> be any other decimal that rounds to {@code v} according to
+     * IEEE 754 and of a length <i>n'</i>. Then:
+     * <ul>
+     *     <li> either <i>n'</i> = 1, thus <i>d'</i> is too short;
+     *     <li> or <i>n'</i> &gt; <i>n</i>, thus <i>d'</i> is too long;
+     *     <li> or <i>n'</i> = <i>n</i> and
+     *     <ul>
+     *         <li> either |<i>d</i> - {@code v}| &lt; |<i>d'</i> - {@code v}|:
+     *         thus <i>d'</i> is farther from {@code v};
+     *         <li> or |<i>d</i> - {@code v}| = |<i>d'</i> - {@code v}| and
+     *         <i>c</i> is even while <i>c'</i> is odd
+     *     </ul>
      * </ul>
      *
      * <p>The selected decimal <i>d</i> is then formatted as a string.
      * If <i>d</i> &lt; 0, the first character of the string is the sign
-     * '{@code -}'. Let |<i>d</i>| = <i>m</i> &middot; 10<sup><i>k</i></sup>,
+     * '{@code -}'. Let |<i>d</i>| = <i>m</i>&middot;10<sup><i>k</i></sup>,
      * for the unique pair of integer <i>k</i> and real <i>m</i> meeting
      * 1 &le; <i>m</i> &lt; 10. Also, let the decimal expansion of <i>m</i> be
-     * <i>m</i><sub>1</sub> . <i>m</i><sub>2</sub> &hellip; <!--
-     * --><i>m</i><sub><i>i</i></sub>,
+     * <i>m</i><sub>1</sub>&thinsp;.&thinsp;<i>m</i><sub>2</sub>&thinsp;<!--
+     * -->&hellip;&thinsp;<i>m</i><sub><i>i</i></sub>,
      * with <i>i</i> &ge; 1 and <i>m</i><sub><i>i</i></sub> &ne; 0.
      * <ul>
      *     <li>Case -3 &le; k &lt; 0: |<i>d</i>| is formatted as
-     *     0 . 0 &hellip; 0<i>m</i><sub>1</sub> &hellip; <!--
+     *     0&thinsp;.&thinsp;0&hellip;0<i>m</i><sub>1</sub>&hellip;<!--
      *     --><i>m</i><sub><i>i</i></sub>,
      *     where there are exactly -<i>k</i> leading zeroes before
      *     <i>m</i><sub>1</sub>, including the zero to the left of the
@@ -139,15 +150,15 @@ final public class DoubleToDecimal {
      *     <ul>
      *         <li>Subcase <i>i</i> &lt; <i>k</i> + 2:
      *         |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub> &hellip; <!--
-     *         --><i>m</i><sub><i>i</i></sub>0 &hellip; 0 . 0,
+     *         <i>m</i><sub>1</sub>&hellip;<!--
+     *         --><i>m</i><sub><i>i</i></sub>0&hellip;0&thinsp;.&thinsp;0,
      *         where there are exactly <i>k</i> + 2 - <i>i</i> trailing zeroes
      *         after <i>m</i><sub><i>i</i></sub>, including the zero to the
      *         right of the decimal point; for example, {@code "1200.0"}.
      *         <li>Subcase <i>i</i> &ge; <i>k</i> + 2:
-     *         |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub> &hellip; <i>m</i><sub><i>k</i>+1</sub> .
-     *         <i>m</i><sub><i>k</i>+2</sub> &hellip; <!--
+     *         |<i>d</i>| is formatted as <i>m</i><sub>1</sub>&hellip;<!--
+     *         --><i>m</i><sub><i>k</i>+1</sub>&thinsp;.&thinsp;<!--
+     *         --><i>m</i><sub><i>k</i>+2</sub>&hellip;<!--
      *         --><i>m</i><sub><i>i</i></sub>; for example, {@code "1234.32"}.
      *     </ul>
      *     <li>Case <i>k</i> &lt; -3 or <i>k</i> &ge; 7:
@@ -157,10 +168,11 @@ final public class DoubleToDecimal {
      *     {@link Integer#toString(int)}.
      *     <ul>
      *         <li>Subcase <i>i</i> = 1: |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub> . 0E<i>k</i>; for example, {@code "2.0E23"}.
+     *         <i>m</i><sub>1</sub>&thinsp;.&thinsp;0E<i>k</i>;
+     *         for example, {@code "2.0E23"}.
      *         <li>Subcase <i>i</i> &gt; 1: |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub> . <i>m</i><sub>2</sub> &hellip; <!--
-     *         --><i>m</i><sub><i>i</i></sub>E<i>k</i>;
+     *         <i>m</i><sub>1</sub>&thinsp;.&thinsp;<i>m</i><sub>2</sub><!--
+     *         -->&hellip;<i>m</i><sub><i>i</i></sub>E<i>k</i>;
      *         for example, {@code "1.234E-32"}.
      *     </ul>
      *  </ul>
