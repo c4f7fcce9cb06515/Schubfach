@@ -25,42 +25,42 @@ import org.junit.Test;
 
 import java.util.Random;
 
-import static java.lang.Math.scalb;
+import static java.lang.Math.*;
+import static java.lang.Double.*;
 import static junit.framework.TestCase.*;
 
 public class DoubleToDecimalTest {
 
-    private String toDecimal(double v) {
+    private static void toDec(double v) {
 //        String s = Double.toString(v);
         String s = DoubleToDecimal.toString(v);
         boolean ok = new DoubleToStringChecker(v, s).isOK();
         assertTrue(ok);
-        return s;
     }
 
     @Test
     public void testExtremeValues() {
-        toDecimal(Double.NEGATIVE_INFINITY);
-        toDecimal(-Double.MAX_VALUE);
-        toDecimal(-Double.MIN_NORMAL);
-        toDecimal(-Double.MIN_VALUE);
-        toDecimal(-0.0);
-        toDecimal(0.0);
-        toDecimal(Double.MIN_VALUE);
-        toDecimal(Double.MIN_NORMAL);
-        toDecimal(Double.MAX_VALUE);
-        toDecimal(Double.POSITIVE_INFINITY);
-        toDecimal(Double.NaN);
+        toDec(NEGATIVE_INFINITY);
+        toDec(-MAX_VALUE);
+        toDec(-MIN_NORMAL);
+        toDec(-MIN_VALUE);
+        toDec(-0.0);
+        toDec(0.0);
+        toDec(MIN_VALUE);
+        toDec(MIN_NORMAL);
+        toDec(MAX_VALUE);
+        toDec(POSITIVE_INFINITY);
+        toDec(NaN);
         /*
         Quiet NaNs have the most significant bit of the mantissa as 1,
         while signaling NaNs have it as 0.
-        Exercise the 4 combinations of quiet/signaling NaNs and
+        Exercise 4 combinations of quiet/signaling NaNs and
         "positive/negative" NaNs
          */
-        toDecimal(Double.longBitsToDouble(0x7FF8_0000_0000_0001L));
-        toDecimal(Double.longBitsToDouble(0x7FF0_0000_0000_0001L));
-        toDecimal(Double.longBitsToDouble(0xFFF8_0000_0000_0001L));
-        toDecimal(Double.longBitsToDouble(0xFFF0_0000_0000_0001L));
+        toDec(longBitsToDouble(0x7FF8_0000_0000_0001L));
+        toDec(longBitsToDouble(0x7FF0_0000_0000_0001L));
+        toDec(longBitsToDouble(0xFFF8_0000_0000_0001L));
+        toDec(longBitsToDouble(0xFFF0_0000_0000_0001L));
     }
 
     /*
@@ -70,7 +70,7 @@ public class DoubleToDecimalTest {
     @Test
     public void testPowersOf10() {
         for (int e = -323; e <= 309; ++e) {
-            toDecimal(Double.parseDouble("1e" + e));
+            toDec(parseDouble("1e" + e));
         }
     }
 
@@ -80,8 +80,8 @@ public class DoubleToDecimalTest {
      */
     @Test
     public void testPowersOf2() {
-        for (double v = Double.MIN_VALUE; v <= Double.MAX_VALUE; v *= 2.0) {
-            toDecimal(v);
+        for (double v = MIN_VALUE; v <= MAX_VALUE; v *= 2.0) {
+            toDec(v);
         }
     }
 
@@ -110,7 +110,7 @@ public class DoubleToDecimalTest {
     @Test
     public void testSomeAnomalies() {
         for (String dec : Anomalies) {
-            toDecimal(Double.parseDouble(dec));
+            toDec(parseDouble(dec));
         }
     }
 
@@ -217,7 +217,7 @@ public class DoubleToDecimalTest {
     @Test
     public void testPaxson() {
         for (int i = 0; i < PaxsonSignificands.length; ++i) {
-            toDecimal(scalb(PaxsonSignificands[i], PaxsonExponents[i]));
+            toDec(scalb(PaxsonSignificands[i], PaxsonExponents[i]));
         }
     }
 
@@ -228,12 +228,7 @@ public class DoubleToDecimalTest {
     @Test
     public void testLongs() {
         for (int i = 10_000; i < 100_000; ++i) {
-            String s = toDecimal(i * 1e15);
-            String xp = Integer.toString(i);
-            int j = 5;
-            while (--j >= 2 && xp.charAt(j) == '0') ; // empty body intended
-            xp = xp.substring(0, 1) + "." + xp.substring(1, j + 1) + "E19";
-            assertEquals(xp, s);
+            toDec(i * 1e15);
         }
     }
 
@@ -243,10 +238,8 @@ public class DoubleToDecimalTest {
      */
     @Test
     public void testInts() {
-        for (int i = -100_000; i <= 100_000; ++i) {
-            String s = toDecimal(i);
-            String xp = Integer.toString(i) + ".0";
-            assertEquals(xp, s);
+        for (int i = 0; i <= 100_000; ++i) {
+            toDec(i);
         }
     }
 
@@ -257,7 +250,7 @@ public class DoubleToDecimalTest {
     public void testRandom() {
         Random r = new Random();
         for (int i = 0; i < 100_000; ++i) {
-            toDecimal(Double.longBitsToDouble(r.nextLong()));
+            toDec(longBitsToDouble(r.nextLong()));
         }
     }
 
@@ -269,7 +262,7 @@ public class DoubleToDecimalTest {
     public void testRandomUnit() {
         Random r = new Random();
         for (int i = 0; i < 100_000; ++i) {
-            toDecimal(r.nextLong() % 1_000_000_000_000_000L);
+            toDec(r.nextLong() % 1_000_000_000_000_000L);
         }
     }
 
@@ -280,7 +273,7 @@ public class DoubleToDecimalTest {
     public void testRandomMilli() {
         Random r = new Random();
         for (int i = 0; i < 100_000; ++i) {
-            toDecimal(r.nextLong() % 1_000_000_000_000_000_000L / 1e3);
+            toDec(r.nextLong() % 1_000_000_000_000_000_000L / 1e3);
         }
     }
 
@@ -291,7 +284,7 @@ public class DoubleToDecimalTest {
     public void testRandomMicro() {
         Random r = new Random();
         for (int i = 0; i < 100_000; ++i) {
-            toDecimal((r.nextLong() & 0x7FFF_FFFF_FFFF_FFFFL) / 1e6);
+            toDec((r.nextLong() & 0x7FFF_FFFF_FFFF_FFFFL) / 1e6);
         }
     }
 
