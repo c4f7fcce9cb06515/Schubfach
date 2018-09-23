@@ -23,11 +23,11 @@ package math;
 
 import java.math.BigDecimal;
 
-class DoubleToStringChecker extends StringChecker {
+class FloatToStringChecker extends StringChecker {
 
-    private double v;
+    private float v;
 
-    DoubleToStringChecker(double v, String s) {
+    FloatToStringChecker(float v, String s) {
         super(s);
         this.v = v;
     }
@@ -39,27 +39,27 @@ class DoubleToStringChecker extends StringChecker {
 
     @Override
     boolean recovers(BigDecimal b) {
-        return b.doubleValue() == v;
+        return b.floatValue() == v;
     }
 
     @Override
     boolean recovers(String s) {
-        return Double.parseDouble(s) == v;
+        return Float.parseFloat(s) == v;
     }
 
     @Override
     int maxExp() {
-        return 309;
+        return 39;
     }
 
     @Override
     int minExp() {
-        return -323;
+        return -44;
     }
 
     @Override
     int maxLen10() {
-        return 17;
+        return 9;
     }
 
     @Override
@@ -69,7 +69,7 @@ class DoubleToStringChecker extends StringChecker {
 
     @Override
     boolean isInfinity() {
-        return v == Double.POSITIVE_INFINITY;
+        return v == Float.POSITIVE_INFINITY;
     }
 
     @Override
@@ -79,7 +79,7 @@ class DoubleToStringChecker extends StringChecker {
 
     @Override
     boolean isNegative() {
-        return Double.doubleToRawLongBits(v) < 0;
+        return Float.floatToRawIntBits(v) < 0;
     }
 
     @Override
