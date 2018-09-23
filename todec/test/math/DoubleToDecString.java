@@ -30,7 +30,7 @@ import static java.lang.Double.*;
  * @test
  * @bug 8202555
  */
-public class ToDecString {
+public class DoubleToDecString {
 
     private static void assertTrue(boolean ok, double v, String s) {
         if (ok) {
@@ -243,7 +243,7 @@ public class ToDecString {
     These are all exact doubles.
      */
     private static void testInts() {
-        for (int i = 0; i <= 100_000; ++i) {
+        for (int i = 0; i <= 1_000_000; ++i) {
             toDec(i);
         }
     }
@@ -253,7 +253,7 @@ public class ToDecString {
      */
     private static void testRandom() {
         Random r = new Random();
-        for (int i = 0; i < 100_000; ++i) {
+        for (int i = 0; i < 1_000_000; ++i) {
             toDec(longBitsToDouble(r.nextLong()));
         }
     }
