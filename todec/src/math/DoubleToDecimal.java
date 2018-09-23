@@ -311,7 +311,7 @@ final public class DoubleToDecimal {
         } else if (s < 10) {
             /*
             Special cases that need to be made artificially longer to meet
-            the specification: Double.MIN_VALUE or 2 * Double.MIN_VALUE
+            the specification
              */
             switch ((int) s) {
                 case 4: return toChars(49, -325); // 4.9 * 10^-324
