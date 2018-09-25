@@ -32,20 +32,27 @@ import static java.lang.Double.*;
  */
 public class DoubleToDecString {
 
+    private static final boolean FAILURE_THROWS_EXCEPTION = true;
+
     private static void assertTrue(boolean ok, double v, String s) {
         if (ok) {
             return;
         }
-        throw new RuntimeException("Double::toString applied to " +
+        String message = "Double::toString applied to " +
                 "Double.longBitsToDouble(" +
                 "0x" + Long.toHexString(doubleToRawLongBits(v)) + "L" +
                 ")" +
                 " returns " +
                 "\"" + s + "\"" +
-                " which is not quite correct according to the specification.");
+                ", which is not correct according to the specification.";
+        if (FAILURE_THROWS_EXCEPTION) {
+            throw new RuntimeException(message);
+        }
+        System.err.println(message);
     }
 
     private static void toDec(double v) {
+//        String s = Double.toString(v);
         String s = DoubleToDecimal.toString(v);
         assertTrue(new DoubleToStringChecker(v, s).isOK(), v, s);
     }

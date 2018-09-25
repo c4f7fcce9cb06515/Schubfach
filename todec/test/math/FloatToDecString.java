@@ -30,24 +30,23 @@ import static java.lang.Float.*;
  */
 public class FloatToDecString {
 
+    private static final boolean FAILURE_THROWS_EXCEPTION = true;
+
     private static void assertTrue(boolean ok, float v, String s) {
         if (ok) {
             return;
         }
-//        System.out.println("Float::toString applied to " +
-//                "Float.intBitsToFloat(" +
-//                "0x" + Integer.toHexString(floatToRawIntBits(v)) +
-//                ")" +
-//                " returns " +
-//                "\"" + s + "\"" +
-//                " which is not quite correct according to the specification.");
-        throw new RuntimeException("Float::toString applied to " +
+        String message = "Float::toString applied to " +
                 "Float.intBitsToFloat(" +
                 "0x" + Integer.toHexString(floatToRawIntBits(v)) +
                 ")" +
                 " returns " +
                 "\"" + s + "\"" +
-                " which is not quite correct according to the specification.");
+                ", which is not correct according to the specification.";
+        if (FAILURE_THROWS_EXCEPTION) {
+            throw new RuntimeException(message);
+        }
+        System.err.println(message);
     }
 
     private static void toDec(float v) {
