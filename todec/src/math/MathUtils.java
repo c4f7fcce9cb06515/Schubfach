@@ -22,8 +22,12 @@
 package math;
 
 /**
+ * This class exposes package private utilities for other classes.
+ *
+ * All methods are assumed to be invoked with correct arguments: they are not
+ * checked for consistency.
+ *
  * @author Raffaello Giulietti
- * @since 12
  */
 final class MathUtils {
 
@@ -36,8 +40,9 @@ final class MathUtils {
     private static final int Q_2 = 38;
     private static final long C_2 = 913_124_641_741L;
 
-    // The minimum exponent for ceilPow5dHigh(int)
-    private static final int MIN_EXP = -292;
+    // The minimum and maximum exponents for ceilPow5dHigh(int)
+    static final int MIN_EXP = -292;
+    static final int MAX_EXP = 324;
 
     private MathUtils() {
     }
@@ -135,7 +140,8 @@ final class MathUtils {
      * (see {@link #flog2pow10(int)}).
      *
      * @param e The exponent of 5,
-     *          which must meet -292 &le; {@code e} &le; 324.
+     *          which must meet {@link #MIN_EXP} &le; {@code e} &le;
+     *          {@link #MAX_EXP}.
      * @return <i>c</i><sub>1</sub> as described above.
      */
     static long ceilPow5dHigh(int e) {
@@ -146,13 +152,18 @@ final class MathUtils {
      * Returns <i>c</i><sub>0</sub> as described in {@link #ceilPow5dHigh(int)}.
      *
      * @param e The exponent of 5,
-     *          which must meet -292 &le; {@code e} &le; 324.
+     *          which must meet {@link #MIN_EXP} &le; {@code e} &le;
+     *          {@link #MAX_EXP}.
      * @return <i>c</i><sub>0</sub> as described in {@link #ceilPow5dHigh(int)}.
      */
     static long ceilPow5dLow(int e) {
         return ceilPow5d[e - MIN_EXP << 1 | 1];
     }
 
+    /**
+     * The precomputed values for {@link #ceilPow5dHigh(int)} and
+     * {@link #ceilPow5dLow(int)}.
+     */
     private static final long[] ceilPow5d = {
         /* -292 */ 0x7FBB_D8FE_5F5E_6E27L, 0x497A_3A27_04EE_C3DFL,
         /* -291 */ 0x4FD5_679E_FB9B_04D8L, 0x5DEC_6458_6315_3A6CL,
