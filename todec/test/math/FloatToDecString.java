@@ -27,6 +27,7 @@ import static java.lang.Float.*;
 
 /*
  * @test
+ * @author Raffaello Giulietti
  */
 public class FloatToDecString {
 

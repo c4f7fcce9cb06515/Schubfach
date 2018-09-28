@@ -29,6 +29,7 @@ import static java.lang.Double.*;
 /*
  * @test
  * @bug 8202555
+ * @author Raffaello Giulietti
  */
 public class DoubleToDecString {
 
@@ -131,7 +132,7 @@ public class DoubleToDecString {
 
     /*
     Values are from
-    Paxson V, "A Program for Testing IEEE Decimal–Binary Conversion"
+    Paxson V, "A Program for Testing IEEE Decimal-Binary Conversion"
      */
     private static final double[] PaxsonSignificands = {
             8_511_030_020_275_656L,
