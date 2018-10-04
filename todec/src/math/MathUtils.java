@@ -24,8 +24,8 @@ package math;
 /**
  * This class exposes package private utilities for other classes.
  *
- * All methods are assumed to be invoked with correct arguments: they are not
- * checked for consistency.
+ * All methods are assumed to be invoked with correct arguments, so they are
+ * not checked at all.
  *
  * @author Raffaello Giulietti
  */
@@ -47,7 +47,7 @@ final class MathUtils {
     private MathUtils() {
     }
 
-    // pow10[i] = 10^i, 0 <= i <= H
+    // pow10[e] = 10^e, 0 <= e <= 17
     static final long[] pow10 = {
         1L,
         10L,
@@ -74,11 +74,11 @@ final class MathUtils {
      * 10<sup><i>k</i></sup> &le; 2<sup>{@code e}</sup>
      * &lt; 10<sup><i>k</i>+1</sup>.
      * <p>
-     * The result is correct when |{@code e}| &le; 5_456_721.
+     * The result is correct when |{@code e}| &le; 6_432_162.
      * Otherwise the result may or may not be correct.
      *
      * @param e The exponent of 2, which should meet
-     *          |{@code e}| &le; 5_456_721 for safe results.
+     *          |{@code e}| &le; 6_432_162 for safe results.
      * @return &lfloor;log<sub>10</sub>2<sup>{@code e}</sup>&rfloor;.
      */
     static int flog10pow2(int e) {
