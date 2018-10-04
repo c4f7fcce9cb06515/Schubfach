@@ -248,11 +248,11 @@ final public class DoubleToDecimal {
         long mask = (1L << 63 - ord2alpha) - 1;
         long threshold = 1L << 62 - ord2alpha;
 
-        // pow5 = pow51*2^63 + pow50
+        // pow5 = pow51 2^63 + pow50
         long pow51 = ceilPow5dHigh(-k);
         long pow50 = ceilPow5dLow(-k);
 
-        // p = p2*2^126 + p1*2^63 + p0 and p = pow5 * cb
+        // p = p2 2^126 + p1 2^63 + p0 and p = pow5 * cb
         long x0 = pow50 * cb;
         long x1 = multiplyHigh(pow50, cb);
         long y0 = pow51 * cb;
