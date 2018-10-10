@@ -216,15 +216,23 @@ final public class DoubleToDecimal {
         return "-Infinity";
     }
 
-    // Let v = c * 2^q be the absolute value of the original double. Renders v.
     private String toDecimal(int q, long c) {
         /*
-        out = 0, if the boundaries of the rounding interval are included
-        out = 1, if they are excluded
-        d = 1 for even, d = 2 for uneven spacing around v.
-        v = cb * 2^qb
-        predecessor(v) = cbl * 2^qb
-        successor(v) = cbr * 2^qb
+        Let v = c 2^q. It is the absolute value of the original double.
+
+        out numerically indicates whether the boundaries are "out" or "in":
+            out = 0,    if the boundaries of the rounding interval are included
+            out = 1,    if they are excluded
+        It would be straightforward to treat the lower and upper boundaries
+        separately to accommodate other input roundings, but for the standard
+        toString(double) there's no need to do so, as round-half-to-even
+        is implied by the specification. For the sake of completeness, though,
+        this is discussed further below, on usages of out.
+
+            d = 1 for even, d = 2 for uneven spacing around v.
+            v = cb 2^qb
+            predecessor(v) = cbl 2^qb
+            successor(v) = cbr 2^qb
          */
         int out = (int) c & 0x1;
 
@@ -234,11 +242,13 @@ final public class DoubleToDecimal {
         int k;
         int ord2alpha;
         if (c != C_MIN | q == Q_MIN) {
+            // even spacing around v
             cb = c << 1;
             cbr = cb + 1;
             k = flog10pow2(q);
             ord2alpha = q + flog2pow10(-k) + 1;
         } else {
+            // uneven spacing around v
             cb = c << 2;
             cbr = cb + 2;
             k = flog10threeQuartersPow2(q);
@@ -251,6 +261,26 @@ final public class DoubleToDecimal {
         // pow5 = pow51 2^63 + pow50
         long pow51 = ceilPow5dHigh(-k);
         long pow50 = ceilPow5dLow(-k);
+
+        /*
+        The following performs a 126 x 63 bit unsigned multiplication
+        delivering a 189 bit product.
+        The 126 bit multiplicand pow5 is split in the 2 longs pow51 and pow50,
+        as described above, and the 63 bit multiplier is in cb.
+        The product p is split in the 3 longs p2, p1, p0, each holding 63 bits.
+
+        The same is repeated further below with cbl and cbr as multipliers.
+
+        The multiplication is then followed by the computation of
+        vn, vnl and vnr.
+
+        This author unsuccessfully tried several ways to factor out the
+        multiplication while retaining comparable performance and striving
+        for better code readability.
+        Since code repetition only occurs 3 times in a limited space of
+        about 40 lines, it is deemed acceptable and under control.
+        Maybe somebody else will succeed in refactoring it in better way.
+         */
 
         // p = p2 2^126 + p1 2^63 + p0 and p = pow5 * cb
         long x0 = pow50 * cb;
@@ -294,6 +324,15 @@ final public class DoubleToDecimal {
             vnr |= 1;
         }
 
+        /*
+        To include/exclude the left/lower and right/upper boundaries of the
+        rounding interval separately, assume two int lout, rout replacing
+        the single out. Both would have similar semantics:
+            1 for a boundary that is "out", 0 when it is "in".
+
+        Then the initializers for the booleans uin* and win* would have
+        lout and rout, resp., in place of out.
+         */
         long s = vn >> 2;
         if (s >= 100) {
             long s10 = s - s % 10;
@@ -342,7 +381,7 @@ final public class DoubleToDecimal {
     }
 
     /*
-    The method formats the number f * 10^e
+    The method formats the number f 10^e
 
     Division is avoided altogether by replacing it with multiplications
     and shifts. This has a noticeable impact on performance.
@@ -359,30 +398,47 @@ final public class DoubleToDecimal {
         if (f >= pow10[len10]) {
             len10 += 1;
         }
-        // 10^(len10-1) <= f < 10^len10
+        /*
+        Here
+            10^(len10-1) <= f < 10^len10
+        Now transform it to ensure
+            10^(H-1) <= f < 10^H
+        and adjust e such that the original number f 10^e is the same as
+            f 10^(-H) 10^e = 0.f 10^e
+         */
         f *= pow10[H - len10];
         e += len10;
 
         /*
-        Split the H = 17 digits of f into:
+        The toChars_*() methods support left-to-right digits extraction
+        using longs provided that the arguments are limited to 8 digits.
+        Therefore, split the H = 17 digits of f into:
             h = the most significant digit of f
             m = the next 8 most significant digits of f
             l = the last 8, least significant digits of f
+        that is
+            f = 10^8 (10^8 h + m) + l = 10^8 hm + l,    hm = 10^8 h + m
 
-        Pictorially, the selected decimal to format as String is
-            0.hmmmmmmmmllllllll * 10^e
-        Depending on the value of e, plain or computerized scientific notation
-        is used.
+        Do it as
+            hm = floor(f / 10^8)
+            l = f % 10^8 = f - 10^8 hm
+            h = floor(hm / 10^8)
+            m = hm % 10^8 = hm - 10^8 h
+
+        It can be shown that
+            floor(f / 10^8) = floor(193_428_131_138_340_668 f / 2^84)
+        and from there
+            floor(f / 10^8) = floor(48_357_032_784_585_167 f / 2^82) =
+                floor(floor(48_357_032_784_585_167 f / 2^64) / 2^18) =
+        Similarly
+            floor(hm / 10^8) = floor(1_441_151_881 hm / 2^57)
+        This way, divisions are avoided.
          */
         long hm = multiplyHigh(f, 48_357_032_784_585_167L) >>> 18;
         int l = (int) (f - 100_000_000L * hm);
         int h = (int) (hm * 1_441_151_881L >>> 57);
         int m = (int) (hm - 100_000_000 * h);
 
-        /*
-        The left-to-right digits generation in toChars_* is inspired by
-        * Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
-         */
         if (0 < e && e <= 7) {
             return toChars_1(h, m, l, e);
         }
@@ -395,7 +451,13 @@ final public class DoubleToDecimal {
     // 0 < e <= 7: plain format without leading zeroes.
     private String toChars_1(int h, int m, int l, int e) {
         appendDigit(h);
-        // y = (m + 1) * 2^LTR / 100_000_000 - 1;
+        /*
+        See the discussion in toChar() for the replacement of the division
+            floor(2^LTR (m + 1) / 10^8)
+
+        The left-to-right digits generation is inspired by
+        * Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
+         */
         int y = (int) (multiplyHigh(
                 (long) (m + 1) << LTR,
                 48_357_032_784_585_167L) >>> 18) - 1;
@@ -447,8 +509,15 @@ final public class DoubleToDecimal {
     }
 
     private void append8Digits(int v) {
-        // y = (v + 1) * 2^LTR / 100_000_000 - 1;
-        int y = (int) (multiplyHigh((long) (v + 1) << LTR,
+        /*
+        See the discussion in toChar() for the replacement of the division
+            floor(2^LTR (v + 1) / 10^8)
+
+        The left-to-right digits generation is inspired by
+        * Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
+         */
+        int y = (int) (multiplyHigh(
+                (long) (v + 1) << LTR,
                 48_357_032_784_585_167L) >>> 18) - 1;
         for (int i = 0; i < 8; ++i) {
             int t = 10 * y;
@@ -476,18 +545,25 @@ final public class DoubleToDecimal {
             appendDigit(e);
             return;
         }
+        /*
+        It can be shown that
+            floor(e / 10) = floor(205 e / 2^11)
+        and that
+            floor(e / 100) = floor(1_311 e / 2^17)
+        Divisions are avoided.
+         */
         if (e < 100) {
-            // d = e / 10
+            // d = floor(e / 10), e % 10 = e - 10 d
             int d = e * 205 >>> 11;
             appendDigit(d);
             appendDigit(e - 10 * d);
             return;
         }
-        // d = e / 100
+        // d = floor(e / 100), e % 100 = e - 100 d
         int d = e * 1_311 >>> 17;
         appendDigit(d);
         e -= 100 * d;
-        // d = e / 10
+        // d = floor(e / 10), e % 10 = e - 10 d
         d = e * 205 >>> 11;
         appendDigit(d);
         appendDigit(e - 10 * d);
