@@ -33,6 +33,8 @@ import static math.MathUtils.*;
  */
 public class MathUtilsChecks {
 
+    private static final BigInteger THREE = BigInteger.valueOf(3);
+    private static final BigInteger FIVE = BigInteger.valueOf(5);
 
     private static void check(boolean claim) {
         if (!claim) {
@@ -57,7 +59,6 @@ public class MathUtilsChecks {
     Throws an exception iff the check fails.
      */
     private static void checkPow5(int e, long c1, long c0) {
-        BigInteger FIVE = BigInteger.valueOf(5);
         // 2^62 <= c1 < 2^63, 0 <= c0 < 2^63
         check(c1 << 1 < 0 && c1 >= 0 && c0 >= 0);
 
@@ -129,7 +130,7 @@ public class MathUtilsChecks {
     }
 
     /*
-    Verifies the soundness of the value returned by
+    Verifies the soundness of the values returned by
     ceilPow5dHigh() and ceilPow5dLow().
      */
     private static void testPow5Table() {
@@ -170,8 +171,6 @@ public class MathUtilsChecks {
         2^(b-1) <= n < 2^b
      */
     private static void testFlog10threeQuartersPow2() {
-        BigInteger THREE = BigInteger.valueOf(3);
-        BigInteger FIVE = BigInteger.valueOf(5);
         /*
         First check the case e = 0
          */
@@ -315,7 +314,6 @@ public class MathUtilsChecks {
         2^(b-1) <= n < 2^b
      */
     private static void testFlog10pow2() {
-        BigInteger FIVE = BigInteger.valueOf(5);
         /*
         First check the case e = 0
          */
@@ -425,7 +423,6 @@ public class MathUtilsChecks {
         2^(b-1) <= n < 2^b
     */
     private static void testFlog2pow10() {
-        BigInteger FIVE = BigInteger.valueOf(5);
         /*
         First check the case e = 0
          */
