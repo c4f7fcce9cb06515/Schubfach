@@ -34,7 +34,6 @@ import static math.MathUtils.*;
 public class MathUtilsChecks {
 
     private static final BigInteger THREE = BigInteger.valueOf(3);
-    private static final BigInteger FIVE = BigInteger.valueOf(5);
 
     private static void check(boolean claim) {
         if (!claim) {
@@ -44,61 +43,61 @@ public class MathUtilsChecks {
 
     /*
     Let
-        5^e = d 2^r
-    for the unique integer r and real d meeting
-        2^125 <= d < 2^126
-    Further, let c = c1 2^63 + c0.
+        10^e = beta 2^r
+    for the unique integer r and real beta meeting
+        2^125 <= beta < 2^126
+    Further, let g = g1 2^63 + g0.
     Checks that:
-        2^62 <= c1 < 2^63,
-        0 <= c0 < 2^63,
-        c - 1 < d <= c,    (that is, c = ceil(d))
+        2^62 <= g1 < 2^63,
+        0 <= g0 < 2^63,
+        g - 1 <= beta < g,    (that is, g = floor(beta) + 1)
     The last predicate, after multiplying by 2^r, is equivalent to
-        (c - 1) 2^r < 5^e <= c 2^r
+        (g - 1) 2^r < 10^e <= g 2^r
     This is the predicate that will be checked in various forms.
 
     Throws an exception iff the check fails.
      */
-    private static void checkPow5(int e, long c1, long c0) {
-        // 2^62 <= c1 < 2^63, 0 <= c0 < 2^63
-        check(c1 << 1 < 0 && c1 >= 0 && c0 >= 0);
+    private static void checkPow10(int e, long g1, long g0) {
+        // 2^62 <= g1 < 2^63, 0 <= g0 < 2^63
+        check(g1 << 1 < 0 && g1 >= 0 && g0 >= 0);
 
-        BigInteger c = valueOf(c1).shiftLeft(63).or(valueOf(c0));
-        // double check that 2^125 <= c < 2^126
-        check(c.signum() > 0 && c.bitLength() == 126);
+        BigInteger g = valueOf(g1).shiftLeft(63).or(valueOf(g0));
+        // double check that 2^125 <= g < 2^126
+        check(g.signum() > 0 && g.bitLength() == 126);
 
-        // see javadoc of MathUtils.ceilPow5dHigh(int)
-        int r = flog2pow10(e) - e - 125;
+        // see javadoc of MathUtils.floorPow10p1dHigh(int)
+        int r = flog2pow10(e) - 125;
 
         /*
         The predicate
-            (c - 1) 2^r < 5^e <= c 2^r
+            (g - 1) 2^r <= 10^e < g 2^r
         is equivalent to
-            c - 1 < 5^e 2^(-r) <= c
+            g - 1 <= 10^e 2^(-r) < g
         When
             e >= 0 & r < 0
         all numerical subexpressions are integer-valued. This is the same as
-            c = 5^e 2^(-r)
+            g - 1 = 10^e 2^(-r)
          */
         if (e >= 0 && r < 0) {
-            check(c.compareTo(FIVE.pow(e).shiftLeft(-r)) == 0);
+            check(g.subtract(ONE).compareTo(TEN.pow(e).shiftLeft(-r)) == 0);
             return;
         }
 
         /*
         The predicate
-            (c - 1) 2^r < 5^e <= c 2^r
+            (g - 1) 2^r <= 10^e < g 2^r
         is equivalent to
-            c 5^(-e) - 5^(-e) < 2^(-r) <= c 5^(-e)
+            g 10^(-e) - 10^(-e) <= 2^(-r) < g 10^(-e)
         When
             e < 0 & r < 0
         all numerical subexpressions are integer-valued.
          */
         if (e < 0 && r < 0) {
-            BigInteger pow5 = FIVE.pow(-e);
+            BigInteger pow5 = TEN.pow(-e);
             BigInteger mhs = ONE.shiftLeft(-r);
-            BigInteger rhs = c.multiply(pow5);
-            check(rhs.subtract(pow5).compareTo(mhs) < 0 &&
-                    mhs.compareTo(rhs) <= 0);
+            BigInteger rhs = g.multiply(pow5);
+            check(rhs.subtract(pow5).compareTo(mhs) <= 0 &&
+                    mhs.compareTo(rhs) < 0);
             return;
         }
 
@@ -106,14 +105,14 @@ public class MathUtilsChecks {
         Finally, when
             e >= 0 & r >= 0
         the predicate
-            (c - 1) 2^r < 5^e <= c 2^r
+            (g - 1) 2^r < 10^e <= g 2^r
         can be used straightforwardly as all numerical subexpressions are
         already integer-valued.
          */
         if (e >= 0) {
-            BigInteger mhs = FIVE.pow(e);
-            check(c.subtract(ONE).shiftLeft(r).compareTo(mhs) < 0 &&
-                    mhs.compareTo(c.shiftLeft(r)) <= 0);
+            BigInteger mhs = TEN.pow(e);
+            check(g.subtract(ONE).shiftLeft(r).compareTo(mhs) <= 0 &&
+                    mhs.compareTo(g.shiftLeft(r)) < 0);
             return;
         }
 
@@ -121,34 +120,22 @@ public class MathUtilsChecks {
         For combinatorial reasons, the only remaining case is
             e < 0 & r >= 0
         which, however, cannot arise. Indeed, the predicate
-            (c - 1) 2^r < 5^e <= c 2^r
+            (g - 1) 2^r <= 10^e < g 2^r
         implies
-            (c - 1) 2^r 5^(-e) < 1
-        which cannot hold, since the left-hand side is a positive integer.
+            (g - 1) 2^r 10^(-e) <= 1
+        which cannot hold, as the left-hand side is greater than 1.
          */
         check(false);
     }
 
     /*
     Verifies the soundness of the values returned by
-    ceilPow5dHigh() and ceilPow5dLow().
-     */
-    private static void testPow5Table() {
-        for (int e = MIN_EXP; e <= MAX_EXP; ++e) {
-            checkPow5(e, ceilPow5dHigh(e), ceilPow5dLow(e));
-        }
-    }
-
-    /*
-    Verifies the soundness of the pow10 array.
+    floorPow10p1dHigh() and floorPow10p1dLow().
      */
     private static void testPow10Table() {
-        int e = 0;
-        long p10 = 1;
-        for (; e < pow10.length; e += 1, p10 *= 10) {
-            check(pow10[e] == p10);
+        for (int e = MIN_EXP; e <= MAX_EXP; ++e) {
+            checkPow10(e, floorPow10p1dHigh(e), floorPow10p1dLow(e));
         }
-        check(e > 17);
     }
 
     /*
@@ -166,46 +153,42 @@ public class MathUtilsChecks {
     This will be transformed in various ways for checking purposes.
 
     For integer n > 0, let further
-        b = bitlength(n)
+        b = len2(n)
     denote its length in bits. This means exactly the same as
         2^(b-1) <= n < 2^b
      */
     private static void testFlog10threeQuartersPow2() {
         /*
-        First check the case e = 0
+        First check the case e = 1
          */
-        check(flog10threeQuartersPow2(0) == -1);
+        check(flog10threeQuartersPow2(1) == 0);
 
         /*
-        Now check the range -300_000 <= e < 0.
-        By inverting all quantities, the predicate to check is equivalent to
+        Now check the range -300_000 <= e <= 0.
+        By rewriting, the predicate to check is equivalent to
             3 10^(-k-1) < 2^(2-e) < 3 10^(-k)
-        As e < 0, it follows that 2^(2-e) >= 8 and the right inequality implies
-        k < 0.
-        The left inequality holds iff
-            3 5^(-k-1) < 2^(k-e+3)
-        also holds and this means exactly the same as
-            bitlength(3 5^(-k-1)) <= k - e + 3
-        Similarly, the right inequality is equivalent to
-            2^(k-e+2) < 3 5^(-k)
-        and hence to
-            k - e + 3 <= bitlength(3 5^(-k))
-        The original predicate is therefore equivalent to
-            bitlength(3 5^(-k-1)) <= k - e + 3 <= bitlength(3 5^(-k))
-        Since k < 0, the powers of 5 are integer-valued.
+        As e <= 0, it follows that 2^(2-e) >= 4 and the right inequality
+        implies k < 0, so the powers of 10 are integers.
 
-        Starting with e = -1 and decrementing until the lower bound, the code
-        keeps track of the two powers of 5 so as to avoid recomputing them.
+        The left inequality is equivalent to
+            len2(3 10^(-k-1)) <= 2 - e
+        and the right inequality to
+            2 - e < len2(3 10^(-k))
+        The original predicate is therefore equivalent to
+            len2(3 10^(-k-1)) <= 2 - e < len2(3 10^(-k))
+
+        Starting with e = 0 and decrementing until the lower bound, the code
+        keeps track of the two powers of 10 to avoid recomputing them.
         This is easy because at each iteration k changes at most by 1. A simple
-        multiplication by 5 computes the next power of 5 when needed.
+        multiplication by 10 computes the next power of 10 when needed.
          */
-        int e = -1;
+        int e = 0;
         int k0 = flog10threeQuartersPow2(e);
         check(k0 < 0);
-        BigInteger l = THREE.multiply(FIVE.pow(-k0 - 1));
-        BigInteger u = l.multiply(FIVE);
+        BigInteger l = THREE.multiply(TEN.pow(-k0 - 1));
+        BigInteger u = l.multiply(TEN);
         for (;;) {
-            check(l.bitLength() <= k0 - e + 3 && k0 - e + 3 <= u.bitLength());
+            check(l.bitLength() <= 2 - e && 2 - e < u.bitLength());
             if (e == -300_000) {
                 break;
             }
@@ -217,47 +200,38 @@ public class MathUtilsChecks {
                 check(k0 - kp == 1);
                 k0 = kp;
                 l = u;
-                u = u.multiply(FIVE);
+                u = u.multiply(TEN);
             }
         }
 
         /*
-        By definition
-            k = floor(log10(3/4 2^e))
-        so when e > 0
-            k <= log10(3/4 2^e) = log10(3/4) + e log10(2) < e log10(2) < e/3
-        Hence, as soon as e >= 5
-            e - k - 3 > e - e/3 - 3 = 2e/3 - 3 > 0
-        Thus, check the range 5 <= e <= 300_000 here.
-        The exponents 1 <= e < 5 are checked separately below.
-
-        Now, in predicate
+        Finally, check the range 2 <= e <= 300_000.
+        In predicate
             10^k < 3 2^(e-2) < 10^(k+1)
-        the right inequality shows that k >= 1 because e >= 5.
+        the right inequality shows that k >= 0 as soon as e >= 2.
         It is equivalent to
-            5^k/3 < 2^(e-k-2) & 2^(e-k-3) < 5^(k+1)/3
-        The powers of 5 are integer-valued.
-        The powers of 2 are integer-values as well.
+            10^k / 3 < 2^(e-2) < 10^(k+1) / 3
+        Both the powers of 10 and the powers of 2 are integer-valued.
         The left inequality is therefore equivalent to
-            floor(5^k/3) < 2^(e-k-2)
+            floor(10^k / 3) < 2^(e-2)
         and thus to
-            bitlength(floor(5^k/3)) <= e - k - 2
+            len2(floor(10^k / 3)) <= e - 2
         while the right inequality is equivalent to
-            2^(e-k-3) < floor(5^(k+1)/3)
+            2^(e-2) <= floor(10^(k+1) / 3)
         and hence to
-            e - k - 2 <= bitlength(floor(5^(k+1)/3))
-        These are summarized in
-            bitlength(floor(5^k/3)) <= e - k - 2 <= bitlength(floor(5^(k+1)/3))
+            e - 2 < len2(floor(10^(k+1) / 3))
+        These are summarized as
+            len2(floor(10^k / 3)) <= e - 2 < len2(floor(10^(k+1) / 3))
          */
-        e = 5;
+        e = 2;
         k0 = flog10threeQuartersPow2(e);
-        check(k0 >= 1);
-        BigInteger l5 = FIVE.pow(k0);
-        BigInteger u5 = l5.multiply(FIVE);
-        l = l5.divide(THREE);
-        u = u5.divide(THREE);
+        check(k0 >= 0);
+        BigInteger l10 = TEN.pow(k0);
+        BigInteger u10 = l10.multiply(TEN);
+        l = l10.divide(THREE);
+        u = u10.divide(THREE);
         for (;;) {
-            check(l.bitLength() <= e - k0 - 2 && e - k0 - 2 <= u.bitLength());
+            check(l.bitLength() <= e - 2 && e - 2 < u.bitLength());
             if (e == 300_000) {
                 break;
             }
@@ -268,27 +242,10 @@ public class MathUtilsChecks {
                 // k changes at most by 1 at each iteration, hence:
                 check(kp - k0 == 1);
                 k0 = kp;
-                u5 = u5.multiply(FIVE);
+                u10 = u10.multiply(TEN);
                 l = u;
-                u = u5.divide(THREE);
+                u = u10.divide(THREE);
             }
-        }
-
-        /*
-        Finally, check the exponents 1 <= e < 5.
-        The predicate to check means the same as
-            4 10^k < 3 2^e < 4 10^(k+1)
-        Both the powers of 10 and the powers of 2 are integer-valued.
-         */
-        e = 1;
-        while (e < 5) {
-            k0 = flog10threeQuartersPow2(e);
-            check(k0 >= 0);
-            l = TEN.pow(k0).shiftLeft(2);
-            u = l.multiply(TEN);
-            BigInteger m = THREE.shiftLeft(e);
-            check(l.compareTo(m) < 0 && m.compareTo(u) < 0);
-            ++e;
         }
     }
 
@@ -304,12 +261,12 @@ public class MathUtilsChecks {
         10^k <= 2^e < 10^(k+1)
     Equality holds iff e = 0, implying k = 0.
     Henceforth, the predicates to check are equivalent to
-        k = 0,    e = 0
-        10^k < 2^e < 10^(k+1),    e != 0
+        k = 0,    if e = 0
+        10^k < 2^e < 10^(k+1),    otherwise
     The latter will be transformed in various ways for checking purposes.
 
     For integer n > 0, let further
-        b = bitlength(n)
+        b = len2(n)
     denote its length in bits. This means exactly the same as
         2^(b-1) <= n < 2^b
      */
@@ -323,32 +280,28 @@ public class MathUtilsChecks {
         Now check the range -300_000 <= e < 0.
         By inverting all quantities, the predicate to check is equivalent to
             10^(-k-1) < 2^(-e) < 10^(-k)
-        As e < 0, it follows that 2^(-e) >= 2 and the right inequality implies
-        k < 0.
-        The left inequality holds iff
-            5^(-k-1) < 2^(k-e+1)
-        also holds and this means exactly the same as
-            bitlength(5^(-k-1)) <= k - e + 1
+        As e < 0, it follows that 2^(-e) >= 2 and the right inequality
+        implies k < 0.
+        The left inequality means exactly the same as
+            len2(10^(-k-1)) <= -e
         Similarly, the right inequality is equivalent to
-            2^(k-e) < 5^(-k)
-        As k != 0, this is the same as
-            k - e + 1 <= bitlength(5^(-k))
+            -e < len2(10^(-k))
         The original predicate is therefore equivalent to
-            bitlength(5^(-k-1)) <= k - e + 1 <= bitlength(5^(-k))
-        The powers of 5 are integer-valued because k < 0.
+            len2(10^(-k-1)) <= -e < len2(10^(-k))
+        The powers of 10 are integer-valued because k < 0.
 
         Starting with e = -1 and decrementing towards the lower bound, the code
-        keeps track of the two powers of 5 so as to avoid recomputing them.
+        keeps track of the two powers of 10 so as to avoid recomputing them.
         This is easy because at each iteration k changes at most by 1. A simple
-        multiplication by 5 computes the next power of 5 when needed.
+        multiplication by 10 computes the next power of 10 when needed.
          */
         int e = -1;
         int k = flog10pow2(e);
         check(k < 0);
-        BigInteger l = FIVE.pow(-k - 1);
-        BigInteger u = l.multiply(FIVE);
+        BigInteger l = TEN.pow(-k - 1);
+        BigInteger u = l.multiply(TEN);
         for (;;) {
-            check(l.bitLength() <= k - e + 1 && k - e + 1 <= u.bitLength());
+            check(l.bitLength() <= -e && -e < u.bitLength());
             if (e == -300_000) {
                 break;
             }
@@ -360,31 +313,30 @@ public class MathUtilsChecks {
                 check(k - kp == 1);
                 k = kp;
                 l = u;
-                u = u.multiply(FIVE);
+                u = u.multiply(TEN);
             }
         }
 
         /*
-        Finally, in a similar vein, check the range 0 < e <= 300_000.
+        Finally, in a similar vein, check the range 0 <= e <= 300_000.
         In predicate
             10^k < 2^e < 10^(k+1)
-        the right inequality shows that k >= 0. It is equivalent to
-            5^k < 2^(e-k) & 2^(e-k-1) < 5^(k+1)
-        Similarly as above, the left inequality means the same as
-            bitlength(5^k) <= e - k
+        the right inequality shows that k >= 0.
+        The left inequality means the same as
+            len2(10^k) <= e
         and the right inequality holds iff
-            e - k <= bitlength(5^(k+1))
+            e < len2(10^(k+1))
         The original predicate is thus equivalent to
-            bitlength(5^k) <= e - k <= bitlength(5^(k+1))
-        As k >= 0, the powers of 5 are integer-valued.
+            len2(10^k) <= e < len2(10^(k+1))
+        As k >= 0, the powers of 10 are integer-valued.
          */
         e = 1;
         k = flog10pow2(e);
         check(k >= 0);
-        l = FIVE.pow(k);
-        u = l.multiply(FIVE);
+        l = TEN.pow(k);
+        u = l.multiply(TEN);
         for (;;) {
-            check(l.bitLength() <= e - k && e - k <= u.bitLength());
+            check(l.bitLength() <= e && e < u.bitLength());
             if (e == 300_000) {
                 break;
             }
@@ -396,7 +348,7 @@ public class MathUtilsChecks {
                 check(kp - k == 1);
                 k = kp;
                 l = u;
-                u = u.multiply(FIVE);
+                u = u.multiply(TEN);
             }
         }
     }
@@ -413,12 +365,12 @@ public class MathUtilsChecks {
         2^k <= 10^e < 2^(k+1)
     Equality holds iff e = 0, implying k = 0.
     Henceforth, the equivalent predicates to check are
-        k = 0,    e = 0
-        2^k < 10^e < 2^(k+1),    e != 0
+        k = 0,    if e = 0
+        2^k < 10^e < 2^(k+1),    otherwise
     The latter will be transformed in various ways for checking purposes.
 
     For integer n > 0, let further
-        b = bitlength(n)
+        b = len2(n)
     denote its length in bits. This means exactly the same as
         2^(b-1) <= n < 2^b
     */
@@ -435,23 +387,21 @@ public class MathUtilsChecks {
         As e < 0, this leads to 10^(-e) >= 10 and the right inequality implies
         k <= -4.
         The above means the same as
-            2^(e-k-1) < 5^(-e) < 2^(e-k)
-        and thus the same as
-            bitlength(5^(-e)) = e - k
-        The powers of 5 are integer values since e < 0.
+            len2(10^(-e)) = -k
+        The powers of 10 are integer values since e < 0.
          */
         int e = -1;
         int k0 = flog2pow10(e);
         check(k0 <= -4);
-        BigInteger l = FIVE;
+        BigInteger l = TEN;
         for (;;) {
-            check(l.bitLength() == e - k0);
+            check(l.bitLength() == -k0);
             if (e == -100_000) {
                 break;
             }
             --e;
             k0 = flog2pow10(e);
-            l = l.multiply(FIVE);
+            l = l.multiply(TEN);
         }
 
         /*
@@ -461,32 +411,29 @@ public class MathUtilsChecks {
         as e > 0, it follows that 10^e >= 10 and the right inequality implies
         k >= 3.
         The above means the same as
-            2^(k-e) < 5^e < 2^(k-e+1)
-        and thus the same as
-            bitlength(5^e) = k - e + 1
-        The powers of 5 are all integer valued, as e > 0.
+            len2(10^e) = k + 1
+        The powers of 10 are all integer valued, as e > 0.
          */
         e = 1;
         k0 = flog2pow10(e);
         check(k0 >= 3);
-        l = FIVE;
+        l = TEN;
         for (;;) {
-            check(l.bitLength() == k0 - e + 1);
+            check(l.bitLength() == k0 + 1);
             if (e == 100_000) {
                 break;
             }
             ++e;
             k0 = flog2pow10(e);
-            l = l.multiply(FIVE);
+            l = l.multiply(TEN);
         }
     }
 
     public static void main(String[] args) {
-        testFlog10pow2();
-        testFlog2pow10();
-        testFlog10threeQuartersPow2();
         testPow10Table();
-        testPow5Table();
+        testFlog10pow2();
+        testFlog10threeQuartersPow2();
+        testFlog2pow10();
     }
 
 }
