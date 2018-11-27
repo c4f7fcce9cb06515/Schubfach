@@ -40,7 +40,7 @@ final class MathUtils {
     private static final int Q_2 = 38;
     private static final long C_2 = 913_124_641_741L;
 
-    // The minimum and maximum exponents for ceilPow5dHigh(int)
+    // The minimum and maximum exponents for floorPow10p1dHigh(int)
     static final int MIN_EXP = -292;
     static final int MAX_EXP = 324;
 
@@ -74,11 +74,11 @@ final class MathUtils {
      * 10<sup><i>k</i></sup> &le; 2<sup>{@code e}</sup>
      * &lt; 10<sup><i>k</i>+1</sup>.
      * <p>
-     * The result is correct when |{@code e}| &le; 6_432_162.
+     * The result is correct when |{@code e}| &le; 5_456_721.
      * Otherwise the result may or may not be correct.
      *
      * @param e The exponent of 2, which should meet
-     *          |{@code e}| &le; 6_432_162 for safe results.
+     *          |{@code e}| &le; 5_456_721 for safe results.
      * @return &lfloor;log<sub>10</sub>2<sup>{@code e}</sup>&rfloor;.
      */
     static int flog10pow2(int e) {
@@ -120,51 +120,53 @@ final class MathUtils {
     }
 
     /**
-     * Let 5<sup>{@code e}</sup> = <i>d</i> &middot; 2<sup><i>r</i></sup>,
-     * for the unique pair of integer <i>r</i> and real <i>d</i> meeting
-     * 2<sup>125</sup> &le; d &lt; 2<sup>126</sup>.
-     * Further, let <i>c</i> = &lceil;<i>d</i>&rceil;.
-     * Split <i>c</i> into the higher 63 bits <i>c</i><sub>1</sub> and
-     * the lower 63 bits <i>c</i><sub>0</sub>. Thus,
-     * <i>c</i><sub>1</sub> =
-     * &lfloor;<i>c</i> &middot; 2<sup>-63</sup>&rfloor;
+     * Let 10<sup>{@code e}</sup> = <i>beta</i> 2<sup><i>r</i></sup>,
+     * for the unique pair of integer <i>r</i> and real <i>beta</i> meeting
+     * 2<sup>125</sup> &le; beta &lt; 2<sup>126</sup>.
+     * Further, let <i>g</i> = &lfloor;<i>beta</i>&rfloor; + 1.
+     * Split <i>g</i> into the higher 63 bits <i>g</i><sub>1</sub> and
+     * the lower 63 bits <i>g</i><sub>0</sub>. Thus,
+     * <i>g</i><sub>1</sub> =
+     * &lfloor;<i>g</i> 2<sup>-63</sup>&rfloor;
      * and
-     * <i>c</i><sub>0</sub> =
-     * <i>c</i> - <i>c</i><sub>1</sub> &middot; 2<sup>63</sup>.
+     * <i>g</i><sub>0</sub> =
+     * <i>g</i> - <i>g</i><sub>1</sub> 2<sup>63</sup>.
      * <p>
-     * This method returns <i>c</i><sub>1</sub> while
-     * {@link #ceilPow5dLow(int)} returns <i>c</i><sub>0</sub>.
+     * This method returns <i>g</i><sub>1</sub> while
+     * {@link #floorPow10p1dLow(int)} returns <i>g</i><sub>0</sub>.
      * <p>
      * If needed, the exponent <i>r</i> can be computed as
-     * <i>r</i> = {@code flog2pow10(e) - e - 125}
+     * <i>r</i> = {@code flog2pow10(e) - 125}
      * (see {@link #flog2pow10(int)}).
      *
-     * @param e The exponent of 5,
+     * @param e The exponent of 10,
      *          which must meet {@link #MIN_EXP} &le; {@code e} &le;
      *          {@link #MAX_EXP}.
-     * @return <i>c</i><sub>1</sub> as described above.
+     * @return <i>g</i><sub>1</sub> as described above.
      */
-    static long ceilPow5dHigh(int e) {
-        return ceilPow5d[e - MIN_EXP << 1];
+    static long floorPow10p1dHigh(int e) {
+        return floorPow10p1d[e - MIN_EXP << 1];
     }
 
     /**
-     * Returns <i>c</i><sub>0</sub> as described in {@link #ceilPow5dHigh(int)}.
+     * Returns <i>g</i><sub>0</sub> as described in
+     * {@link #floorPow10p1dHigh(int)}.
      *
-     * @param e The exponent of 5,
+     * @param e The exponent of 10,
      *          which must meet {@link #MIN_EXP} &le; {@code e} &le;
      *          {@link #MAX_EXP}.
-     * @return <i>c</i><sub>0</sub> as described in {@link #ceilPow5dHigh(int)}.
+     * @return <i>g</i><sub>0</sub> as described in
+     * {@link #floorPow10p1dHigh(int)}.
      */
-    static long ceilPow5dLow(int e) {
-        return ceilPow5d[e - MIN_EXP << 1 | 1];
+    static long floorPow10p1dLow(int e) {
+        return floorPow10p1d[e - MIN_EXP << 1 | 1];
     }
 
     /**
-     * The precomputed values for {@link #ceilPow5dHigh(int)} and
-     * {@link #ceilPow5dLow(int)}.
+     * The precomputed values for {@link #floorPow10p1dHigh(int)} and
+     * {@link #floorPow10p1dLow(int)}.
      */
-    private static final long[] ceilPow5d = {
+    private static final long[] floorPow10p1d = {
         /* -292 */ 0x7FBB_D8FE_5F5E_6E27L, 0x497A_3A27_04EE_C3DFL,
         /* -291 */ 0x4FD5_679E_FB9B_04D8L, 0x5DEC_6458_6315_3A6CL,
         /* -290 */ 0x63CA_C186_BA81_C60EL, 0x7567_7D6E_7BDA_8906L,
@@ -457,61 +459,61 @@ final class MathUtils {
         /*   -3 */ 0x4189_374B_C6A7_EF9DL, 0x5916_872B_020C_49BBL,
         /*   -2 */ 0x51EB_851E_B851_EB85L, 0x0F5C_28F5_C28F_5C29L,
         /*   -1 */ 0x6666_6666_6666_6666L, 0x3333_3333_3333_3334L,
-        /*    0 */ 0x4000_0000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    1 */ 0x5000_0000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    2 */ 0x6400_0000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    3 */ 0x7D00_0000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    4 */ 0x4E20_0000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    5 */ 0x61A8_0000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    6 */ 0x7A12_0000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    7 */ 0x4C4B_4000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    8 */ 0x5F5E_1000_0000_0000L, 0x0000_0000_0000_0000L,
-        /*    9 */ 0x7735_9400_0000_0000L, 0x0000_0000_0000_0000L,
-        /*   10 */ 0x4A81_7C80_0000_0000L, 0x0000_0000_0000_0000L,
-        /*   11 */ 0x5D21_DBA0_0000_0000L, 0x0000_0000_0000_0000L,
-        /*   12 */ 0x746A_5288_0000_0000L, 0x0000_0000_0000_0000L,
-        /*   13 */ 0x48C2_7395_0000_0000L, 0x0000_0000_0000_0000L,
-        /*   14 */ 0x5AF3_107A_4000_0000L, 0x0000_0000_0000_0000L,
-        /*   15 */ 0x71AF_D498_D000_0000L, 0x0000_0000_0000_0000L,
-        /*   16 */ 0x470D_E4DF_8200_0000L, 0x0000_0000_0000_0000L,
-        /*   17 */ 0x58D1_5E17_6280_0000L, 0x0000_0000_0000_0000L,
-        /*   18 */ 0x6F05_B59D_3B20_0000L, 0x0000_0000_0000_0000L,
-        /*   19 */ 0x4563_9182_44F4_0000L, 0x0000_0000_0000_0000L,
-        /*   20 */ 0x56BC_75E2_D631_0000L, 0x0000_0000_0000_0000L,
-        /*   21 */ 0x6C6B_935B_8BBD_4000L, 0x0000_0000_0000_0000L,
-        /*   22 */ 0x43C3_3C19_3756_4800L, 0x0000_0000_0000_0000L,
-        /*   23 */ 0x54B4_0B1F_852B_DA00L, 0x0000_0000_0000_0000L,
-        /*   24 */ 0x69E1_0DE7_6676_D080L, 0x0000_0000_0000_0000L,
-        /*   25 */ 0x422C_A8B0_A00A_4250L, 0x0000_0000_0000_0000L,
-        /*   26 */ 0x52B7_D2DC_C80C_D2E4L, 0x0000_0000_0000_0000L,
-        /*   27 */ 0x6765_C793_FA10_079DL, 0x0000_0000_0000_0000L,
-        /*   28 */ 0x409F_9CBC_7C4A_04C2L, 0x1000_0000_0000_0000L,
-        /*   29 */ 0x50C7_83EB_9B5C_85F2L, 0x5400_0000_0000_0000L,
-        /*   30 */ 0x64F9_64E6_8233_A76FL, 0x2900_0000_0000_0000L,
-        /*   31 */ 0x7E37_BE20_22C0_914BL, 0x1340_0000_0000_0000L,
-        /*   32 */ 0x4EE2_D6D4_15B8_5ACEL, 0x7C08_0000_0000_0000L,
-        /*   33 */ 0x629B_8C89_1B26_7182L, 0x5B0A_0000_0000_0000L,
-        /*   34 */ 0x7B42_6FAB_61F0_0DE3L, 0x31CC_8000_0000_0000L,
-        /*   35 */ 0x4D09_85CB_1D36_08AEL, 0x0F1F_D000_0000_0000L,
-        /*   36 */ 0x604B_E73D_E483_8AD9L, 0x52E7_C400_0000_0000L,
-        /*   37 */ 0x785E_E10D_5DA4_6D90L, 0x07A1_B500_0000_0000L,
-        /*   38 */ 0x4B3B_4CA8_5A86_C47AL, 0x04C5_1120_0000_0000L,
-        /*   39 */ 0x5E0A_1FD2_7128_7598L, 0x45F6_5568_0000_0000L,
-        /*   40 */ 0x758C_A7C7_0D72_92FEL, 0x5773_EAC2_0000_0000L,
-        /*   41 */ 0x4977_E8DC_6867_9BDFL, 0x16A8_72B9_4000_0000L,
-        /*   42 */ 0x5BD5_E313_8281_82D6L, 0x7C52_8F67_9000_0000L,
-        /*   43 */ 0x72CB_5BD8_6321_E38CL, 0x5B67_3341_7400_0000L,
-        /*   44 */ 0x47BF_1967_3DF5_2E37L, 0x7920_8008_E880_0000L,
-        /*   45 */ 0x59AE_DFC1_0D72_79C5L, 0x7768_A00B_22A0_0000L,
-        /*   46 */ 0x701A_97B1_50CF_1837L, 0x3542_C80D_EB48_0000L,
-        /*   47 */ 0x4610_9ECE_D281_6F22L, 0x5149_BD08_B30D_0000L,
-        /*   48 */ 0x5794_C682_8721_CAEBL, 0x259C_2C4A_DFD0_4000L,
-        /*   49 */ 0x6D79_F823_28EA_3DA6L, 0x0F03_375D_97C4_5000L,
-        /*   50 */ 0x446C_3B15_F992_6687L, 0x6962_029A_7EDA_B200L,
-        /*   51 */ 0x5587_49DB_77F7_0029L, 0x63BA_8341_1E91_5E80L,
-        /*   52 */ 0x6AE9_1C52_55F4_C034L, 0x1CA9_2411_6635_B620L,
-        /*   53 */ 0x42D1_B1B3_75B8_F820L, 0x51E9_B68A_DFE1_91D4L,
-        /*   54 */ 0x5386_1E20_5327_3628L, 0x6664_242D_97D9_F649L,
+        /*    0 */ 0x4000_0000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    1 */ 0x5000_0000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    2 */ 0x6400_0000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    3 */ 0x7D00_0000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    4 */ 0x4E20_0000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    5 */ 0x61A8_0000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    6 */ 0x7A12_0000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    7 */ 0x4C4B_4000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    8 */ 0x5F5E_1000_0000_0000L, 0x0000_0000_0000_0001L,
+        /*    9 */ 0x7735_9400_0000_0000L, 0x0000_0000_0000_0001L,
+        /*   10 */ 0x4A81_7C80_0000_0000L, 0x0000_0000_0000_0001L,
+        /*   11 */ 0x5D21_DBA0_0000_0000L, 0x0000_0000_0000_0001L,
+        /*   12 */ 0x746A_5288_0000_0000L, 0x0000_0000_0000_0001L,
+        /*   13 */ 0x48C2_7395_0000_0000L, 0x0000_0000_0000_0001L,
+        /*   14 */ 0x5AF3_107A_4000_0000L, 0x0000_0000_0000_0001L,
+        /*   15 */ 0x71AF_D498_D000_0000L, 0x0000_0000_0000_0001L,
+        /*   16 */ 0x470D_E4DF_8200_0000L, 0x0000_0000_0000_0001L,
+        /*   17 */ 0x58D1_5E17_6280_0000L, 0x0000_0000_0000_0001L,
+        /*   18 */ 0x6F05_B59D_3B20_0000L, 0x0000_0000_0000_0001L,
+        /*   19 */ 0x4563_9182_44F4_0000L, 0x0000_0000_0000_0001L,
+        /*   20 */ 0x56BC_75E2_D631_0000L, 0x0000_0000_0000_0001L,
+        /*   21 */ 0x6C6B_935B_8BBD_4000L, 0x0000_0000_0000_0001L,
+        /*   22 */ 0x43C3_3C19_3756_4800L, 0x0000_0000_0000_0001L,
+        /*   23 */ 0x54B4_0B1F_852B_DA00L, 0x0000_0000_0000_0001L,
+        /*   24 */ 0x69E1_0DE7_6676_D080L, 0x0000_0000_0000_0001L,
+        /*   25 */ 0x422C_A8B0_A00A_4250L, 0x0000_0000_0000_0001L,
+        /*   26 */ 0x52B7_D2DC_C80C_D2E4L, 0x0000_0000_0000_0001L,
+        /*   27 */ 0x6765_C793_FA10_079DL, 0x0000_0000_0000_0001L,
+        /*   28 */ 0x409F_9CBC_7C4A_04C2L, 0x1000_0000_0000_0001L,
+        /*   29 */ 0x50C7_83EB_9B5C_85F2L, 0x5400_0000_0000_0001L,
+        /*   30 */ 0x64F9_64E6_8233_A76FL, 0x2900_0000_0000_0001L,
+        /*   31 */ 0x7E37_BE20_22C0_914BL, 0x1340_0000_0000_0001L,
+        /*   32 */ 0x4EE2_D6D4_15B8_5ACEL, 0x7C08_0000_0000_0001L,
+        /*   33 */ 0x629B_8C89_1B26_7182L, 0x5B0A_0000_0000_0001L,
+        /*   34 */ 0x7B42_6FAB_61F0_0DE3L, 0x31CC_8000_0000_0001L,
+        /*   35 */ 0x4D09_85CB_1D36_08AEL, 0x0F1F_D000_0000_0001L,
+        /*   36 */ 0x604B_E73D_E483_8AD9L, 0x52E7_C400_0000_0001L,
+        /*   37 */ 0x785E_E10D_5DA4_6D90L, 0x07A1_B500_0000_0001L,
+        /*   38 */ 0x4B3B_4CA8_5A86_C47AL, 0x04C5_1120_0000_0001L,
+        /*   39 */ 0x5E0A_1FD2_7128_7598L, 0x45F6_5568_0000_0001L,
+        /*   40 */ 0x758C_A7C7_0D72_92FEL, 0x5773_EAC2_0000_0001L,
+        /*   41 */ 0x4977_E8DC_6867_9BDFL, 0x16A8_72B9_4000_0001L,
+        /*   42 */ 0x5BD5_E313_8281_82D6L, 0x7C52_8F67_9000_0001L,
+        /*   43 */ 0x72CB_5BD8_6321_E38CL, 0x5B67_3341_7400_0001L,
+        /*   44 */ 0x47BF_1967_3DF5_2E37L, 0x7920_8008_E880_0001L,
+        /*   45 */ 0x59AE_DFC1_0D72_79C5L, 0x7768_A00B_22A0_0001L,
+        /*   46 */ 0x701A_97B1_50CF_1837L, 0x3542_C80D_EB48_0001L,
+        /*   47 */ 0x4610_9ECE_D281_6F22L, 0x5149_BD08_B30D_0001L,
+        /*   48 */ 0x5794_C682_8721_CAEBL, 0x259C_2C4A_DFD0_4001L,
+        /*   49 */ 0x6D79_F823_28EA_3DA6L, 0x0F03_375D_97C4_5001L,
+        /*   50 */ 0x446C_3B15_F992_6687L, 0x6962_029A_7EDA_B201L,
+        /*   51 */ 0x5587_49DB_77F7_0029L, 0x63BA_8341_1E91_5E81L,
+        /*   52 */ 0x6AE9_1C52_55F4_C034L, 0x1CA9_2411_6635_B621L,
+        /*   53 */ 0x42D1_B1B3_75B8_F820L, 0x51E9_B68A_DFE1_91D5L,
+        /*   54 */ 0x5386_1E20_5327_3628L, 0x6664_242D_97D9_F64AL,
         /*   55 */ 0x6867_A5A8_67F1_03B2L, 0x7FFD_2D38_FDD0_73DCL,
         /*   56 */ 0x4140_C789_40F6_A24FL, 0x6FFE_3C43_9EA2_486AL,
         /*   57 */ 0x5190_F96B_9134_4AE3L, 0x6BFD_CB54_864A_DA84L,
