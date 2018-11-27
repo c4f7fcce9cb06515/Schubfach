@@ -33,25 +33,40 @@ import static java.lang.Math.multiplyHigh;
  */
 final public class DoubleToDecimal {
 
-    // Precision of normal values in bits.
+    /*
+    According to IEEE 754-2008, define
+        P: the precision in bits
+        SIZE: the total size in bits
+    The quantities here and the following Java constants are then derived.
+        Q_MAX = 2^(W-1) - P,    maximum value of the exponent
+        C_MAX = 2^P - 1,    maximum value of the significand
+     */
+
+    // Precision in bits.
     private static final int P = 53;
 
-    // Length in bits of the exponent field.
+    // Width in bits of the biased exponent.
     private static final int W = (Double.SIZE - 1) - (P - 1);
 
-    // Minimum value of the exponent.
+    // Minimum value of the exponent: -(2^(W-1)) - P + 3.
     private static final int Q_MIN = (-1 << W - 1) - P + 3;
 
-    // Minimum value of the coefficient of a normal value.
+    // Minimum value of the significand of a normal value: 2^(P-1).
     private static final long C_MIN = 1L << P - 1;
 
-    // Mask to extract the IEEE 754-2008 biased exponent.
+    // Mask to extract the biased exponent.
     private static final int BQ_MASK = (1 << W) - 1;
 
-    // Mask to extract the IEEE 754-2008 fraction bits.
+    // Mask to extract the fraction bits.
     private static final long T_MASK = (1L << P - 1) - 1;
 
-    // H = min {n integer | 10^(n-1) > 2^P}
+    /*
+    The quantity
+        H = min {n integer | 10^(n-1) > 2^P}
+    is the minimal number of decimal digits needed to ensure that
+        round-to-half-even(toString(v)) = v
+    holds for any finite v.
+     */
     private static final int H = 17;
 
     // used in the left-to-right extraction of the digits
@@ -73,7 +88,7 @@ final public class DoubleToDecimal {
      */
     private final char[] buf = new char[H + 7];
 
-    // index of rightmost valid character
+    // index into buf of rightmost valid character
     private int index;
 
     private DoubleToDecimal() {
@@ -189,6 +204,16 @@ final public class DoubleToDecimal {
     }
 
     private String toDecimal(double v) {
+        /*
+        For finite v != 0, determine integers c and q such that
+            |v| = c 2^q    and
+            Q_MIN <= q <= Q_MAX    and
+                either    C_MIN <= c <= C_MAX              (normal value)
+                or        0 < c < C_MIN  and  q = Q_MIN    (subnormal value)
+
+        bits are the raw bits of v, bq is its biased exponent.
+        See IEEE 754 for the details related to the different cases below.
+         */
         long bits = doubleToRawLongBits(v);
         int bq = (int) (bits >>> P - 1) & BQ_MASK;
         if (bq < BQ_MASK) {
@@ -218,21 +243,41 @@ final public class DoubleToDecimal {
 
     private String toDecimal(int q, long c) {
         /*
-        Let v = c 2^q. It is the absolute value of the original double.
+        Here, let
+            v = c 2^q
+        denote the absolute value of the original double, where c and q are
+        as in toDecimal(double)
+        Define
+            v has regular spacing      if    c != C_MIN  or  q = Q_MIN
+            v has irregular spacing    otherwise
+        Let
+            vl = (c - 1/2) 2^q    if    v has regular spacing
+            vl = (c - 1/4) 2^q    otherwise
+        and
+            vr = (c + 1/2) 2^q
+        These numbers are the lower and upper boundaries of the rounding
+        interval Rv of v. They are included in Rv iff c is even. That is
+            Rv = [vl, vr]    if    c is even
+            Rv = (vl, vr)    otherwise
 
-        out numerically indicates whether the boundaries are "out" or "in":
-            out = 0,    if the boundaries of the rounding interval are included
-            out = 1,    if they are excluded
+        out numerically indicates whether the boundaries of Rv are excluded:
+            out = 0,    if the boundaries of Rv are included, i.e., c is even
+            out = 1,    if they are excluded, i.e., c is odd
+
         It would be straightforward to treat the lower and upper boundaries
-        separately to accommodate other input roundings, but for the standard
-        toString(double) there's no need to do so, as round-half-to-even
-        is implied by the specification. For the sake of completeness, though,
-        this is discussed further below, on usages of out.
+        separately to accommodate other input roundings.
+        However, for toString(double) there's no need to do so,
+        as round-half-to-even is implied by the specification.
+        For the sake of completeness, though, this is discussed further below,
+        on usages of out.
 
-            d = 1 for even, d = 2 for uneven spacing around v.
+        With
+            qb = q - 1    if    v has regular spacing
+            qb = q - 2    otherwise
+        and cb, cbr and cbl defined as in the code below, it follows that
             v = cb 2^qb
-            predecessor(v) = cbl 2^qb
-            successor(v) = cbr 2^qb
+            vl = cbl 2^qb
+            vr = cbr 2^qb
          */
         int out = (int) c & 0x1;
 
@@ -240,144 +285,150 @@ final public class DoubleToDecimal {
         long cbr;
         long cbl;
         int k;
-        int ord2alpha;
+        int delta;
         if (c != C_MIN | q == Q_MIN) {
-            // even spacing around v
+            // regular spacing
             cb = c << 1;
             cbr = cb + 1;
             k = flog10pow2(q);
-            ord2alpha = q + flog2pow10(-k) + 1;
+            delta = 61 - q - flog2pow10(-k);
         } else {
-            // uneven spacing around v
+            // irregular spacing
             cb = c << 2;
             cbr = cb + 2;
             k = flog10threeQuartersPow2(q);
-            ord2alpha = q + flog2pow10(-k);
+            delta = 62 - q - flog2pow10(-k);
         }
         cbl = cb - 1;
-        long mask = (1L << 63 - ord2alpha) - 1;
-        long threshold = 1L << 62 - ord2alpha;
 
-        // pow5 = pow51 2^63 + pow50
-        long pow51 = ceilPow5dHigh(-k);
-        long pow50 = ceilPow5dLow(-k);
+        long vb = rop(k, cb, delta);
+        long vbl = rop(k, cbl, delta);
+        long vbr = rop(k, cbr, delta);
 
         /*
+        To include/exclude the left/lower and right/upper boundaries of the
+        rounding interval Rv independently, assume two int lout, rout
+        replacing the single out. Both would have similar semantics:
+            1 if the boundary is excluded from Rv
+            0 otherwise.
+        Then the initializers for the booleans uin* and win* would have
+        lout and rout, resp., in place of out alone.
+
+        Back to the decimal selection, with s and t as below, at least one of
+            s 10^k    and    t 10^k
+        lies in the rounding interval Rv.
+         */
+        long s = vb >> 2;
+        if (s >= 100) {
+            /*
+            When s has 3 or more digits, first consider the shorter variants
+            with one digit less:
+                s' = floor(s / 10)    and     t' = s' + 1
+            which are used to define
+                s' 10^(k+1)    and    t' 10^(k+1)
+            At most one of them lies in Rv.
+            Fall out of this branch if none lies in Rv.
+
+            In the code below, rather than s' and t' it is more convenient
+            to consider s10 = 10 s' and t10 = 10 t' = s10 + 10.
+            This is the only place where a division is carried out.
+             */
+            long s10 = s - s % 10;
+            long t10 = s10 + 10;
+            boolean uin10 = vbl + out <= s10 << 2;
+            boolean win10 = (t10 << 2) + out <= vbr;
+            if (uin10 != win10) {
+                if (!win10) {
+                    return toChars(s10, k);
+                }
+                return toChars(t10, k);
+            }
+        } else if (s < 10) {
+            /*
+            When s has only 1 digit, it needs to be made artificially longer
+            to meet the specification.
+            The only cases are well-known, so can be coded specially:
+            not elegant, but does the job.
+             */
+            switch ((int) s) {
+                case 4: return toChars(49, -325); // 4.9 10^(-324)
+                case 9: return toChars(99, -325); // 9.9 10^(-324)
+            }
+        }
+        /*
+        Otherwise s has 2 digits, and so no shorter variants need to be checked,
+        or control reaches here because shorter variants are outside Rv.
+         */
+        long t = s + 1;
+        boolean uin = vbl + out <= s << 2;
+        boolean win = (t << 2) + out <= vbr;
+        if (!win) {
+            /*
+            Only s 10^k lies in Rv.
+             */
+            return toChars(s, k);
+        }
+        if (!uin) {
+            /*
+            Only t 10^k lies in Rv.
+             */
+            return toChars(t, k);
+        }
+        /*
+        Both s 10^k and t 10^k lie in Rv: determine the closest to v.
+         */
+        long cmp = vb - (s + t << 1);
+        if (cmp < 0) {
+            /*
+            s 10^k is closer
+             */
+            return toChars(s, k);
+        }
+        if (cmp > 0) {
+            /*
+            t 10^k is closer
+             */
+            return toChars(t, k);
+        }
+        /*
+        Both s 10^k and t 10^k are equally close to v: choose the "even" one.
+         */
+        if ((s & 0x1) == 0) {
+            return toChars(s, k);
+        }
+        return toChars(t, k);
+    }
+
+    private static long rop(int k, long cb, int delta) {
+        /*
         The following performs a 126 x 63 bit unsigned multiplication
-        delivering a 189 bit product.
-        The 126 bit multiplicand pow5 is split in the 2 longs pow51 and pow50,
-        as described above, and the 63 bit multiplier is in cb.
+        delivering a 189 bit product. It computes p = g cb.
+        The 126 bit multiplier g is split in the 2 longs g1 and g0,
+        and cb is the 63 bit multiplicand.
         The product p is split in the 3 longs p2, p1, p0, each holding 63 bits.
 
-        The same is repeated further below with cbl and cbr as multipliers.
+        The multiplication is then followed by the computation of vb.
+        */
+        // g = g1 2^63 + g0
+        long g1 = floorPow10p1dHigh(-k);
+        long g0 = floorPow10p1dLow(-k);
 
-        The multiplication is then followed by the computation of
-        vn, vnl and vnr.
-
-        This author unsuccessfully tried several ways to factor out the
-        multiplication while retaining comparable performance and striving
-        for better code readability.
-        Since code repetition only occurs 3 times in a limited space of
-        about 40 lines, it is deemed acceptable and under control.
-        Maybe somebody else will succeed in refactoring it in better way.
-         */
-
-        // p = p2 2^126 + p1 2^63 + p0 and p = pow5 * cb
-        long x0 = pow50 * cb;
-        long x1 = multiplyHigh(pow50, cb);
-        long y0 = pow51 * cb;
-        long y1 = multiplyHigh(pow51, cb);
+        long x0 = g0 * cb;
+        long x1 = multiplyHigh(g0, cb);
+        long y0 = g1 * cb;
+        long y1 = multiplyHigh(g1, cb);
         long z = (x1 << 1 | x0 >>> 63) + (y0 & MASK_63);
         long p0 = x0 & MASK_63;
         long p1 = z & MASK_63;
         long p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
-        long vn = p2 << 1 + ord2alpha | p1 >>> 62 - ord2alpha;
+
+        long vbp = p2 << 63 - delta | p1 >> delta;
+        long threshold = 1L << delta;
+        long mask = (1L << delta + 1) - 1;
         if ((p1 & mask) != 0 || p0 >= threshold) {
-            vn |= 1;
+            return vbp | 1;
         }
-
-        // Similarly as above, with p = pow5 * cbl
-        x0 = pow50 * cbl;
-        x1 = multiplyHigh(pow50, cbl);
-        y0 = pow51 * cbl;
-        y1 = multiplyHigh(pow51, cbl);
-        z = (x1 << 1 | x0 >>> 63) + (y0 & MASK_63);
-        p0 = x0 & MASK_63;
-        p1 = z & MASK_63;
-        p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
-        long vnl = p2 << ord2alpha | p1 >>> 63 - ord2alpha;
-        if ((p1 & mask) != 0 || p0 >= threshold) {
-            vnl |= 1;
-        }
-
-        // Similarly as above, with p = pow5 * cbr
-        x0 = pow50 * cbr;
-        x1 = multiplyHigh(pow50, cbr);
-        y0 = pow51 * cbr;
-        y1 = multiplyHigh(pow51, cbr);
-        z = (x1 << 1 | x0 >>> 63) + (y0 & MASK_63);
-        p0 = x0 & MASK_63;
-        p1 = z & MASK_63;
-        p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
-        long vnr = p2 << ord2alpha | p1 >>> 63 - ord2alpha;
-        if ((p1 & mask) != 0 || p0 >= threshold) {
-            vnr |= 1;
-        }
-
-        /*
-        To include/exclude the left/lower and right/upper boundaries of the
-        rounding interval separately, assume two int lout, rout replacing
-        the single out. Both would have similar semantics:
-            1 for a boundary that is "out", 0 when it is "in".
-
-        Then the initializers for the booleans uin* and win* would have
-        lout and rout, resp., in place of out.
-         */
-        long s = vn >> 2;
-        if (s >= 100) {
-            long s10 = s - s % 10;
-            long t10 = s10 + 10;
-            boolean uin10 = vnl + out <= s10 << 1;
-            boolean win10 = (t10 << 1) + out <= vnr;
-            if (uin10 | win10) {
-                if (!win10) {
-                    return toChars(s10, k);
-                }
-                if (!uin10) {
-                    return toChars(t10, k);
-                }
-            }
-        } else if (s < 10) {
-            /*
-            Special cases that need to be made artificially longer to meet
-            the specification
-             */
-            switch ((int) s) {
-                case 4: return toChars(49, -325); // 4.9 * 10^-324
-                case 9: return toChars(99, -325); // 9.9 * 10^-324
-            }
-        }
-        long t = s + 1;
-        boolean uin = vnl + out <= s << 1;
-        boolean win = (t << 1) + out <= vnr;
-//        assert uin || win; // because 10^r <= 2^q
-        if (!win) {
-            return toChars(s, k);
-        }
-        if (!uin) {
-            return toChars(t, k);
-        }
-        long cmp = vn - (s + t << 1);
-        if (cmp < 0) {
-            return toChars(s, k);
-        }
-        if (cmp > 0) {
-            return toChars(t, k);
-        }
-        if ((s & 1) == 0) {
-            return toChars(s, k);
-        }
-        return toChars(t, k);
+        return vbp;
     }
 
     /*
