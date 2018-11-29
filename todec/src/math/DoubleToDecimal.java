@@ -32,7 +32,6 @@ import static java.lang.Math.multiplyHigh;
  * @author Raffaello Giulietti
  */
 final public class DoubleToDecimal {
-
     /*
     According to IEEE 754-2008, define
         P: the precision in bits
@@ -72,8 +71,6 @@ final public class DoubleToDecimal {
     // used in the left-to-right extraction of the digits
     private static final int LTR = 28;
     private static final int MASK_LTR = (1 << LTR) - 1;
-
-    private static final long MASK_63 = (1L << Long.SIZE - 1) - 1;
 
     // for thread-safety, each thread gets its own instance of this class
     private static final ThreadLocal<DoubleToDecimal> threadLocal =
@@ -280,33 +277,35 @@ final public class DoubleToDecimal {
             vr = cbr 2^qb
          */
         int out = (int) c & 0x1;
-
         long cb;
         long cbr;
         long cbl;
         int k;
-        int delta;
+        int shift;
         if (c != C_MIN | q == Q_MIN) {
             // regular spacing
             cb = c << 1;
             cbr = cb + 1;
             k = flog10pow2(q);
-            delta = 61 - q - flog2pow10(-k);
+            shift = q + flog2pow10(-k) + 3;
         } else {
             // irregular spacing
             cb = c << 2;
             cbr = cb + 2;
             k = flog10threeQuartersPow2(q);
-            delta = 62 - q - flog2pow10(-k);
+            shift = q + flog2pow10(-k) + 2;
         }
         cbl = cb - 1;
 
-        long vb = rop(k, cb, delta);
-        long vbl = rop(k, cbl, delta);
-        long vbr = rop(k, cbr, delta);
+        long g1 = floorPow10p1dHigh(-k);
+        long g0 = floorPow10p1dLow(-k);
+
+        long vb  = rop(g1, g0, cb << shift);
+        long vbl = rop(g1, g0, cbl << shift);
+        long vbr = rop(g1, g0, cbr << shift);
 
         /*
-        To include/exclude the left/lower and right/upper boundaries of the
+        To include/exclude the left and right boundaries of the
         rounding interval Rv independently, assume two int lout, rout
         replacing the single out. Both would have similar semantics:
             1 if the boundary is excluded from Rv
@@ -316,7 +315,7 @@ final public class DoubleToDecimal {
 
         Back to the decimal selection, with s and t as below, at least one of
             s 10^k    and    t 10^k
-        lies in the rounding interval Rv.
+        lies in Rv.
          */
         long s = vb >> 2;
         if (s >= 100) {
@@ -325,7 +324,7 @@ final public class DoubleToDecimal {
             with one digit less:
                 s' = floor(s / 10)    and     t' = s' + 1
             which are used to define
-                s' 10^(k+1)    and    t' 10^(k+1)
+                u' = s' 10^(k+1)    and    w' = t' 10^(k+1)
             At most one of them lies in Rv.
             Fall out of this branch if none lies in Rv.
 
@@ -399,33 +398,13 @@ final public class DoubleToDecimal {
         return toChars(t, k);
     }
 
-    private static long rop(int k, long cb, int delta) {
-        /*
-        The following performs a 126 x 63 bit unsigned multiplication
-        delivering a 189 bit product. It computes p = g cb.
-        The 126 bit multiplier g is split in the 2 longs g1 and g0,
-        and cb is the 63 bit multiplicand.
-        The product p is split in the 3 longs p2, p1, p0, each holding 63 bits.
-
-        The multiplication is then followed by the computation of vb.
-        */
-        // g = g1 2^63 + g0
-        long g1 = floorPow10p1dHigh(-k);
-        long g0 = floorPow10p1dLow(-k);
-
-        long x0 = g0 * cb;
-        long x1 = multiplyHigh(g0, cb);
-        long y0 = g1 * cb;
-        long y1 = multiplyHigh(g1, cb);
-        long z = (x1 << 1 | x0 >>> 63) + (y0 & MASK_63);
-        long p0 = x0 & MASK_63;
-        long p1 = z & MASK_63;
-        long p2 = (y1 << 1 | y0 >>> 63) + (z >>> 63);
-
-        long vbp = p2 << 63 - delta | p1 >> delta;
-        long threshold = 1L << delta;
-        long mask = (1L << delta + 1) - 1;
-        if ((p1 & mask) != 0 || p0 >= threshold) {
+    private static long rop(long g1, long g0, long cp) {
+        long x1 = multiplyHigh(g0, cp);
+        long y0 = g1 * cp;
+        long y1 = multiplyHigh(g1, cp);
+        long z = y0 + (x1 << 1);
+        long vbp = y1 + ((y0 & ~z) >>> 63);
+        if (z >>> 1 != 0) {
             return vbp | 1;
         }
         return vbp;
