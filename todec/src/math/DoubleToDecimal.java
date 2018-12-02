@@ -68,6 +68,9 @@ final public class DoubleToDecimal {
      */
     private static final int H = 17;
 
+    // used in rop()
+    private static final long MASK_63 = (1L << 63) - 1;
+
     // used in the left-to-right extraction of the digits
     private static final int LTR = 28;
     private static final int MASK_LTR = (1 << LTR) - 1;
@@ -83,7 +86,7 @@ final public class DoubleToDecimal {
         -d.ddddddddddddddddE-eee    H + 7 characters
     where there are H digits d
      */
-    private final char[] buf = new char[H + 7];
+    private final byte[] buf = new byte[H + 7];
 
     // index into buf of rightmost valid character
     private int index;
@@ -106,18 +109,21 @@ final public class DoubleToDecimal {
      *     It is rendered in two stages:
      *     <ul>
      *         <li> <em>Selection of a decimal</em>: A well-specified non-zero
-     *         decimal <i>d</i> is selected to represent {@code v}.
-     *         <li> <em>Formatting as a string</em>: The decimal <i>d</i> is
-     *         formatted as a string, either in plain or in computerized
-     *         scientific notation, depending on its value.
+     *         decimal <i>d</i><sub><code>v</code></sub> is selected
+     *         to represent {@code v}.
+     *         <li> <em>Formatting as a string</em>: The decimal
+     *         <i>d</i><sub><code>v</code></sub> is formatted as a string,
+     *         either in plain or in computerized scientific notation,
+     *         depending on its value.
      *     </ul>
      * </ul>
      *
-     * <p>The selected decimal <i>d</i> has a length <i>n</i> if it can be
-     * written as <i>d</i> = <i>c</i>&middot;10<sup><i>q</i></sup> for some
-     * integers <i>q</i> and <i>c</i> meeting 10<sup><i>n</i>-1</sup> &le;
-     * |<i>c</i>| &lt; 10<sup><i>n</i></sup>. It has all the following
-     * properties:
+     * <p>The selected decimal <i>d</i><sub><code>v</code></sub> has
+     * a length <i>n</i> if it can be written as
+     * <i>d</i><sub><code>v</code></sub> = <i>d</i>&middot;10<sup><i>i</i></sup>
+     * for some integers <i>i</i> and <i>d</i> meeting
+     * 10<sup><i>n</i>-1</sup> &le; |<i>d</i>| &lt; 10<sup><i>n</i></sup>.
+     * It has all the following properties:
      * <ul>
      *     <li> It rounds to {@code v} according to the usual round-to-closest
      *     rule of IEEE 754 floating-point arithmetic.
@@ -128,63 +134,70 @@ final public class DoubleToDecimal {
      *     if there are two that are equally close to {@code v}, it is the one
      *     whose least significant digit is even.
      * </ul>
-     * More formally, let <i>d'</i> = <i>c'</i>&middot;10<sup><i>q'</i></sup>
-     * &ne; <i>d</i> be any other decimal that rounds to {@code v} according to
-     * IEEE 754 and of a length <i>n'</i>. Then:
+     * More formally, let <i>x</i> = <i>d'</i>&middot;10<sup><i>i'</i></sup>
+     * &ne; <i>d</i><sub><code>v</code></sub> be any other decimal that rounds
+     * to {@code v} according to IEEE 754 and of a length <i>n'</i>. Then:
      * <ul>
-     *     <li> either <i>n'</i> = 1, thus <i>d'</i> is too short;
-     *     <li> or <i>n'</i> &gt; <i>n</i>, thus <i>d'</i> is too long;
+     *     <li> either <i>n'</i> = 1, thus <i>x</i> is too short;
+     *     <li> or <i>n'</i> &gt; <i>n</i>, thus <i>x</i> is too long;
      *     <li> or <i>n'</i> = <i>n</i> and
      *     <ul>
-     *         <li> either |<i>d</i> - {@code v}| &lt; |<i>d'</i> - {@code v}|:
-     *         thus <i>d'</i> is farther from {@code v};
-     *         <li> or |<i>d</i> - {@code v}| = |<i>d'</i> - {@code v}| and
-     *         <i>c</i> is even while <i>c'</i> is odd
+     *         <li> either |<i>d</i><sub><code>v</code></sub> - {@code v}| &lt;
+     *         |<i>x</i> - {@code v}|: thus <i>x</i> is farther from {@code v};
+     *         <li> or |<i>d</i><sub><code>v</code></sub> - {@code v}| =
+     *         |<i>x</i> - {@code v}| and <i>d</i> is even while <i>d'</i> is
+     *         odd
      *     </ul>
      * </ul>
      *
-     * <p>The selected decimal <i>d</i> is then formatted as a string.
-     * If <i>d</i> &lt; 0, the first character of the string is the sign
-     * '{@code -}'. Let |<i>d</i>| = <i>m</i>&middot;10<sup><i>k</i></sup>,
-     * for the unique pair of integer <i>k</i> and real <i>m</i> meeting
-     * 1 &le; <i>m</i> &lt; 10. Also, let the decimal expansion of <i>m</i> be
-     * <i>m</i><sub>1</sub>&thinsp;.&thinsp;<i>m</i><sub>2</sub>&thinsp;<!--
-     * -->&hellip;&thinsp;<i>m</i><sub><i>i</i></sub>,
-     * with <i>i</i> &ge; 1 and <i>m</i><sub><i>i</i></sub> &ne; 0.
+     * <p>The selected decimal <i>d</i><sub><code>v</code></sub> is then
+     * formatted as a string. If <i>d</i><sub><code>v</code></sub> &lt; 0,
+     * the first character of the string is the sign '{@code -}'.
+     * Let |<i>d</i><sub><code>v</code></sub>| =
+     * <i>f</i>&middot;10<sup><i>e</i></sup>, for the unique pair of
+     * integer <i>e</i> and real <i>f</i> meeting 1 &le; <i>f</i> &lt; 10.
+     * Also, let the decimal expansion of <i>f</i> be
+     * <i>f</i><sub>1</sub>&thinsp;.&thinsp;<i>f</i><sub>2</sub>&thinsp;<!--
+     * -->&hellip;&thinsp;<i>f</i><sub><i>m</i></sub>,
+     * with <i>m</i> &ge; 1 and <i>f</i><sub><i>m</i></sub> &ne; 0.
      * <ul>
-     *     <li>Case -3 &le; k &lt; 0: |<i>d</i>| is formatted as
-     *     0&thinsp;.&thinsp;0&hellip;0<i>m</i><sub>1</sub>&hellip;<!--
-     *     --><i>m</i><sub><i>i</i></sub>,
-     *     where there are exactly -<i>k</i> leading zeroes before
-     *     <i>m</i><sub>1</sub>, including the zero to the left of the
+     *     <li>Case -3 &le; <i>e</i> &lt; 0:
+     *     |<i>d</i><sub><code>v</code></sub>| is formatted as
+     *     0&thinsp;.&thinsp;0&hellip;0<i>f</i><sub>1</sub>&hellip;<!--
+     *     --><i>f</i><sub><i>m</i></sub>,
+     *     where there are exactly -<i>e</i> leading zeroes before
+     *     <i>f</i><sub>1</sub>, including the zero to the left of the
      *     decimal point; for example, {@code "0.01234"}.
-     *     <li>Case 0 &le; <i>k</i> &lt; 7:
+     *     <li>Case 0 &le; <i>e</i> &lt; 7:
      *     <ul>
-     *         <li>Subcase <i>i</i> &lt; <i>k</i> + 2:
-     *         |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>&hellip;<!--
-     *         --><i>m</i><sub><i>i</i></sub>0&hellip;0&thinsp;.&thinsp;0,
-     *         where there are exactly <i>k</i> + 2 - <i>i</i> trailing zeroes
-     *         after <i>m</i><sub><i>i</i></sub>, including the zero to the
+     *         <li>Subcase <i>i</i> &lt; <i>e</i> + 2:
+     *         |<i>d</i><sub><code>v</code></sub>| is formatted as
+     *         <i>f</i><sub>1</sub>&hellip;<!--
+     *         --><i>f</i><sub><i>m</i></sub>0&hellip;0&thinsp;.&thinsp;0,
+     *         where there are exactly <i>e</i> + 2 - <i>m</i> trailing zeroes
+     *         after <i>f</i><sub><i>m</i></sub>, including the zero to the
      *         right of the decimal point; for example, {@code "1200.0"}.
-     *         <li>Subcase <i>i</i> &ge; <i>k</i> + 2:
-     *         |<i>d</i>| is formatted as <i>m</i><sub>1</sub>&hellip;<!--
-     *         --><i>m</i><sub><i>k</i>+1</sub>&thinsp;.&thinsp;<!--
-     *         --><i>m</i><sub><i>k</i>+2</sub>&hellip;<!--
-     *         --><i>m</i><sub><i>i</i></sub>; for example, {@code "1234.32"}.
+     *         <li>Subcase <i>i</i> &ge; <i>e</i> + 2:
+     *         |<i>d</i><sub><code>v</code></sub>| is formatted as
+     *         <i>f</i><sub>1</sub>&hellip;<!--
+     *         --><i>f</i><sub><i>e</i>+1</sub>&thinsp;.&thinsp;<!--
+     *         --><i>f</i><sub><i>e</i>+2</sub>&hellip;<!--
+     *         --><i>f</i><sub><i>m</i></sub>; for example, {@code "1234.32"}.
      *     </ul>
-     *     <li>Case <i>k</i> &lt; -3 or <i>k</i> &ge; 7:
-     *     computerized scientific notation is used to format |<i>d</i>|,
-     *     by combining <i>m</i> and <i>k</i> separated by the exponent
-     *     indicator '{@code E}'. The exponent <i>k</i> is formatted as in
-     *     {@link Integer#toString(int)}.
+     *     <li>Case <i>e</i> &lt; -3 or <i>e</i> &ge; 7:
+     *     computerized scientific notation is used to format
+     *     |<i>d</i><sub><code>v</code></sub>|, by combining <i>f</i> and
+     *     <i>e</i> separated by the exponent indicator '{@code E}'. The
+     *     exponent <i>e</i> is formatted as in {@link Integer#toString(int)}.
      *     <ul>
-     *         <li>Subcase <i>i</i> = 1: |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>&thinsp;.&thinsp;0E<i>k</i>;
+     *         <li>Subcase <i>m</i> = 1:
+     *         |<i>d</i><sub><code>v</code></sub>| is formatted as
+     *         <i>f</i><sub>1</sub>&thinsp;.&thinsp;0E<i>e</i>;
      *         for example, {@code "2.0E23"}.
-     *         <li>Subcase <i>i</i> &gt; 1: |<i>d</i>| is formatted as
-     *         <i>m</i><sub>1</sub>&thinsp;.&thinsp;<i>m</i><sub>2</sub><!--
-     *         -->&hellip;<i>m</i><sub><i>i</i></sub>E<i>k</i>;
+     *         <li>Subcase <i>m</i> &gt; 1:
+     *         |<i>d</i><sub><code>v</code></sub>| is formatted as
+     *         <i>f</i><sub>1</sub>&thinsp;.&thinsp;<i>f</i><sub>2</sub><!--
+     *         -->&hellip;<i>f</i><sub><i>m</i></sub>E<i>e</i>;
      *         for example, {@code "1.234E-32"}.
      *     </ul>
      *  </ul>
@@ -299,7 +312,6 @@ final public class DoubleToDecimal {
 
         long g1 = floorPow10p1dHigh(-k);
         long g0 = floorPow10p1dLow(-k);
-
         long vb  = rop(g1, g0, cb << shift);
         long vbl = rop(g1, g0, cbl << shift);
         long vbr = rop(g1, g0, cbr << shift);
@@ -337,7 +349,7 @@ final public class DoubleToDecimal {
             boolean uin10 = vbl + out <= s10 << 2;
             boolean win10 = (t10 << 2) + out <= vbr;
             if (uin10 != win10) {
-                if (!win10) {
+                if (uin10) {
                     return toChars(s10, k);
                 }
                 return toChars(t10, k);
@@ -402,12 +414,10 @@ final public class DoubleToDecimal {
         long x1 = multiplyHigh(g0, cp);
         long y0 = g1 * cp;
         long y1 = multiplyHigh(g1, cp);
-        long z = y0 + (x1 << 1);
-        long vbp = y1 + ((y0 & ~z) >>> 63);
-        if (z >>> 1 != 0) {
-            return vbp | 1;
-        }
-        return vbp;
+        long z = (y0 >>> 1) + x1;
+        long vbp = y1 + (z >>> 63);
+//        return (z << 1) != 0 ? vbp | 1 : vbp;
+        return vbp | (z & MASK_63) + MASK_63 >>> 63;
     }
 
     /*
@@ -600,15 +610,15 @@ final public class DoubleToDecimal {
     }
 
     private void append(int c) {
-        buf[++index] = (char) c;
+        buf[++index] = (byte) c;
     }
 
     private void appendDigit(int d) {
-        buf[++index] = (char) ('0' + d);
+        buf[++index] = (byte) ('0' + d);
     }
 
     private String charsToString() {
-        return new String(buf, 0, index + 1);
+        return new String(buf, 0, 0, index + 1);
     }
 
 }
