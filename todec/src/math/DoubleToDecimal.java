@@ -349,10 +349,7 @@ final public class DoubleToDecimal {
             boolean uin10 = vbl + out <= s10 << 2;
             boolean win10 = (t10 << 2) + out <= vbr;
             if (uin10 != win10) {
-                if (uin10) {
-                    return toChars(s10, k);
-                }
-                return toChars(t10, k);
+                return toChars(uin10 ? s10 : t10, k);
             }
         } else if (s < 10) {
             /*
@@ -373,41 +370,17 @@ final public class DoubleToDecimal {
         long t = s + 1;
         boolean uin = vbl + out <= s << 2;
         boolean win = (t << 2) + out <= vbr;
-        if (!win) {
+        if (uin != win) {
             /*
-            Only s 10^k lies in Rv.
+            Exactly one of s 10^k or t 10^k lies in Rv.
              */
-            return toChars(s, k);
-        }
-        if (!uin) {
-            /*
-            Only t 10^k lies in Rv.
-             */
-            return toChars(t, k);
+            return toChars(uin ? s : t, k);
         }
         /*
-        Both s 10^k and t 10^k lie in Rv: determine the closest to v.
+        Both s 10^k and t 10^k lie in Rv: determine the one closest to v.
          */
         long cmp = vb - (s + t << 1);
-        if (cmp < 0) {
-            /*
-            s 10^k is closer
-             */
-            return toChars(s, k);
-        }
-        if (cmp > 0) {
-            /*
-            t 10^k is closer
-             */
-            return toChars(t, k);
-        }
-        /*
-        Both s 10^k and t 10^k are equally close to v: choose the "even" one.
-         */
-        if ((s & 0x1) == 0) {
-            return toChars(s, k);
-        }
-        return toChars(t, k);
+        return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
 
     private static long rop(long g1, long g0, long cp) {
@@ -416,7 +389,6 @@ final public class DoubleToDecimal {
         long y1 = multiplyHigh(g1, cp);
         long z = (y0 >>> 1) + x1;
         long vbp = y1 + (z >>> 63);
-//        return (z << 1) != 0 ? vbp | 1 : vbp;
         return vbp | (z & MASK_63) + MASK_63 >>> 63;
     }
 

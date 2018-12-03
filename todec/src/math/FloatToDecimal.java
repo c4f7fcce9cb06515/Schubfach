@@ -23,7 +23,7 @@ package math;
 
 import static java.lang.Float.POSITIVE_INFINITY;
 import static java.lang.Float.floatToRawIntBits;
-import static java.lang.Long.numberOfLeadingZeros;
+import static java.lang.Integer.numberOfLeadingZeros;
 import static java.lang.Math.multiplyHigh;
 import static math.MathUtils.*;
 
@@ -233,10 +233,7 @@ final public class FloatToDecimal {
         /*
         out = 0, if the boundaries of the rounding interval are included
         out = 1, if they are excluded
-        d = 1 for even, d = 2 for uneven spacing around v.
         v = cb * 2^qb
-        predecessor(v) = cbl * 2^qb
-        successor(v) = cbr * 2^qb
          */
         int out = c & 0x1;
 
@@ -270,10 +267,7 @@ final public class FloatToDecimal {
             boolean uin10 = vnl + out <= s10 << 2;
             boolean win10 = (t10 << 2) + out <= vnr;
             if (uin10 != win10) {
-                if (uin10) {
-                    return toChars(s10, k);
-                }
-                return toChars(t10, k);
+                return toChars(uin10 ? s10 : t10, k);
             }
         } else if (s < 10) {
             /*
@@ -293,32 +287,22 @@ final public class FloatToDecimal {
         int t = s + 1;
         boolean uin = vnl + out <= s << 2;
         boolean win = (t << 2) + out <= vnr;
-//        assert uin || win; // because 10^r <= 2^q
-        if (!win) {
-            return toChars(s, k);
+        if (uin != win) {
+            /*
+            Exactly one of s 10^k or t 10^k lies in Rv.
+             */
+            return toChars(uin ? s : t, k);
         }
-        if (!uin) {
-            return toChars(t, k);
-        }
+        /*
+        Both s 10^k and t 10^k lie in Rv: determine the one closest to v.
+         */
         int cmp = vn - (s + t << 1);
-        if (cmp < 0) {
-            return toChars(s, k);
-        }
-        if (cmp > 0) {
-            return toChars(t, k);
-        }
-        if ((s & 1) == 0) {
-            return toChars(s, k);
-        }
-        return toChars(t, k);
+        return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
 
     private static int rop(long g, long cp) {
         long x1 = multiplyHigh(g, cp);
         long vbp = x1 >> 31;
-//        return (int) (x1 << 33 != 0 ? vbp | 1 : vbp);
-//        return (int) (vbp | (x1 << 33 != 0 ? 1 : 0));
-//        return (int) (vbp | ((int) x1 != 0 ? 1 : 0));
         return (int) (vbp | (x1 & MASK_31) + MASK_31 >>> 31);
     }
 
@@ -336,7 +320,7 @@ final public class FloatToDecimal {
      */
     private String toChars(int f, int e) {
         // Normalize f to lie in the f-independent interval [10^(H-1), 10^H)
-        int len10 = flog10pow2(Long.SIZE - numberOfLeadingZeros(f));
+        int len10 = flog10pow2(Integer.SIZE - numberOfLeadingZeros(f));
         if (f >= pow10[len10]) {
             len10 += 1;
         }
