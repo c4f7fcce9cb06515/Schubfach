@@ -80,6 +80,8 @@ public class DoubleToDecString {
         toDec(longBitsToDouble(0x7FF0_0000_0000_0001L));
         toDec(longBitsToDouble(0xFFF8_0000_0000_0001L));
         toDec(longBitsToDouble(0xFFF0_0000_0000_0001L));
+        toDec(4.9E-324);
+        toDec(9.9E-324);
     }
 
     /*

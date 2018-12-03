@@ -81,6 +81,13 @@ public class FloatToDecString {
         toDec(intBitsToFloat(0x7F80_0001));
         toDec(intBitsToFloat(0xFFC0_0001));
         toDec(intBitsToFloat(0xFF80_0001));
+        toDec(1.4E-45F);
+        toDec(2.8E-45F);
+        toDec(4.2E-45F);
+        toDec(5.6E-45F);
+        toDec(7.0E-45F);
+        toDec(8.4E-45F);
+        toDec(9.8E-45F);
     }
 
     /*
