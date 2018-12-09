@@ -21,8 +21,7 @@
 
 package math;
 
-import static java.lang.Float.POSITIVE_INFINITY;
-import static java.lang.Float.floatToRawIntBits;
+import static java.lang.Float.*;
 import static java.lang.Integer.numberOfLeadingZeros;
 import static java.lang.Math.multiplyHigh;
 import static math.MathUtils.*;
@@ -110,14 +109,14 @@ final public class FloatToDecimal {
      * <i>d</i><sub><code>v</code></sub> = <i>d</i>&middot;10<sup><i>i</i></sup>
      * for some integers <i>i</i> and <i>d</i> meeting
      * 10<sup><i>n</i>-1</sup> &le; |<i>d</i>| &lt; 10<sup><i>n</i></sup>.
-     * It has all the following properties:
+     * The decimal <i>d</i><sub><code>v</code></sub> has <em>all</em> the
+     * following properties:
      * <ul>
      *     <li> It rounds to {@code v} according to the usual round-to-closest
      *     rule of IEEE 754 floating-point arithmetic.
-     *     <li> Among the decimals above, it has a length of 2 or more.
-     *     <li> Among all such decimals, it is one of those with the shortest
-     *     length.
-     *     <li> Among the latter ones, it is the one closest to {@code v}. Or
+     *     <li> Among the latter, it has a length of 2 or more.
+     *     <li> Among the latter, it has the minimal length.
+     *     <li> Among the latter, it is the one closest to {@code v}. Or
      *     if there are two that are equally close to {@code v}, it is the one
      *     whose least significant digit is even.
      * </ul>
@@ -157,14 +156,14 @@ final public class FloatToDecimal {
      *     decimal point; for example, {@code "0.01234"}.
      *     <li>Case 0 &le; <i>e</i> &lt; 7:
      *     <ul>
-     *         <li>Subcase <i>i</i> &lt; <i>e</i> + 2:
+     *         <li>Subcase <i>m</i> &lt; <i>e</i> + 2:
      *         |<i>d</i><sub><code>v</code></sub>| is formatted as
      *         <i>f</i><sub>1</sub>&hellip;<!--
      *         --><i>f</i><sub><i>m</i></sub>0&hellip;0&thinsp;.&thinsp;0,
      *         where there are exactly <i>e</i> + 2 - <i>m</i> trailing zeroes
      *         after <i>f</i><sub><i>m</i></sub>, including the zero to the
      *         right of the decimal point; for example, {@code "1200.0"}.
-     *         <li>Subcase <i>i</i> &ge; <i>e</i> + 2:
+     *         <li>Subcase <i>m</i> &ge; <i>e</i> + 2:
      *         |<i>d</i><sub><code>v</code></sub>| is formatted as
      *         <i>f</i><sub>1</sub>&hellip;<!--
      *         --><i>f</i><sub><i>e</i>+1</sub>&thinsp;.&thinsp;<!--

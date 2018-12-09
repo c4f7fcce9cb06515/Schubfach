@@ -30,6 +30,11 @@ package math;
  * @author Raffaello Giulietti
  */
 final class MathUtils {
+    /*
+    For full details about this code see:
+        Giulietti, "The Schubfach way to render doubles",
+        https://drive.google.com/open?id=1KLtG_LaIbK9ETXI290zqCxvBW94dj058
+     */
 
     // C_10 = floor(log10(2) * 2^Q_10), A_10 = floor(log10(3/4) * 2^Q_10)
     private static final int Q_10 = 41;
@@ -100,7 +105,7 @@ final class MathUtils {
      * 2<sup>{@code e}</sup>)&rfloor;.
      */
     static int flog10threeQuartersPow2(int e) {
-        return (int) ((e * C_10 + A_10) >> Q_10);
+        return (int) (e * C_10 + A_10 >> Q_10);
     }
 
     /**
@@ -136,8 +141,7 @@ final class MathUtils {
      * {@link #floorPow10p1dLow(int)} returns <i>g</i><sub>0</sub>.
      * <p>
      * If needed, the exponent <i>r</i> can be computed as
-     * <i>r</i> = {@code flog2pow10(e) - 125}
-     * (see {@link #flog2pow10(int)}).
+     * <i>r</i> = {@code flog2pow10(e)} - 125 (see {@link #flog2pow10(int)}).
      *
      * @param e The exponent of 10,
      *          which must meet {@link #MIN_EXP} &le; {@code e} &le;

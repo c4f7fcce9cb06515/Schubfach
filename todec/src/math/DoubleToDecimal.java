@@ -23,8 +23,8 @@ package math;
 
 import static java.lang.Double.*;
 import static java.lang.Long.numberOfLeadingZeros;
-import static math.MathUtils.*;
 import static java.lang.Math.multiplyHigh;
+import static math.MathUtils.*;
 
 /**
  * This class exposes a method to render a {@code double} as a string.
@@ -33,18 +33,23 @@ import static java.lang.Math.multiplyHigh;
  */
 final public class DoubleToDecimal {
     /*
-    According to IEEE 754-2008, define
-        P: the precision in bits
-        SIZE: the total size in bits
-    The quantities here and the following Java constants are then derived.
-        Q_MAX = 2^(W-1) - P,    maximum value of the exponent
-        C_MAX = 2^P - 1,    maximum value of the significand
+    For full details about this code see:
+        Giulietti, "The Schubfach way to render doubles",
+        https://drive.google.com/open?id=1KLtG_LaIbK9ETXI290zqCxvBW94dj058
      */
 
-    // Precision in bits.
+    /*
+    According to IEEE 754-2008, define
+        Double.SIZE, the overall size in bits
+        P, the precision in bits
+    The following Java constants and the quantities here are then derived.
+        Q_MAX = 2^(W-1) - P, maximum value of the exponent
+        C_MAX = 2^P - 1, maximum value of the significand
+     */
+
     private static final int P = 53;
 
-    // Width in bits of the biased exponent.
+    // Exponent width
     private static final int W = (Double.SIZE - 1) - (P - 1);
 
     // Minimum value of the exponent: -(2^(W-1)) - P + 3.
@@ -123,14 +128,14 @@ final public class DoubleToDecimal {
      * <i>d</i><sub><code>v</code></sub> = <i>d</i>&middot;10<sup><i>i</i></sup>
      * for some integers <i>i</i> and <i>d</i> meeting
      * 10<sup><i>n</i>-1</sup> &le; |<i>d</i>| &lt; 10<sup><i>n</i></sup>.
-     * It has all the following properties:
+     * The decimal <i>d</i><sub><code>v</code></sub> has <em>all</em> the
+     * following properties:
      * <ul>
      *     <li> It rounds to {@code v} according to the usual round-to-closest
      *     rule of IEEE 754 floating-point arithmetic.
-     *     <li> Among the decimals above, it has a length of 2 or more.
-     *     <li> Among all such decimals, it is one of those with the shortest
-     *     length.
-     *     <li> Among the latter ones, it is the one closest to {@code v}. Or
+     *     <li> Among the latter, it has a length of 2 or more.
+     *     <li> Among the latter, it has the minimal length.
+     *     <li> Among the latter, it is the one closest to {@code v}. Or
      *     if there are two that are equally close to {@code v}, it is the one
      *     whose least significant digit is even.
      * </ul>
@@ -170,14 +175,14 @@ final public class DoubleToDecimal {
      *     decimal point; for example, {@code "0.01234"}.
      *     <li>Case 0 &le; <i>e</i> &lt; 7:
      *     <ul>
-     *         <li>Subcase <i>i</i> &lt; <i>e</i> + 2:
+     *         <li>Subcase <i>m</i> &lt; <i>e</i> + 2:
      *         |<i>d</i><sub><code>v</code></sub>| is formatted as
      *         <i>f</i><sub>1</sub>&hellip;<!--
      *         --><i>f</i><sub><i>m</i></sub>0&hellip;0&thinsp;.&thinsp;0,
      *         where there are exactly <i>e</i> + 2 - <i>m</i> trailing zeroes
      *         after <i>f</i><sub><i>m</i></sub>, including the zero to the
      *         right of the decimal point; for example, {@code "1200.0"}.
-     *         <li>Subcase <i>i</i> &ge; <i>e</i> + 2:
+     *         <li>Subcase <i>m</i> &ge; <i>e</i> + 2:
      *         |<i>d</i><sub><code>v</code></sub>| is formatted as
      *         <i>f</i><sub>1</sub>&hellip;<!--
      *         --><i>f</i><sub><i>e</i>+1</sub>&thinsp;.&thinsp;<!--
@@ -220,7 +225,6 @@ final public class DoubleToDecimal {
             Q_MIN <= q <= Q_MAX    and
                 either    C_MIN <= c <= C_MAX              (normal value)
                 or        0 < c < C_MIN  and  q = Q_MIN    (subnormal value)
-
         bits are the raw bits of v, bq is its biased exponent.
         See IEEE 754 for the details related to the different cases below.
          */
@@ -261,13 +265,13 @@ final public class DoubleToDecimal {
             v has regular spacing      if    c != C_MIN  or  q = Q_MIN
             v has irregular spacing    otherwise
         Let
-            vl = (c - 1/2) 2^q    if    v has regular spacing
+            vl = (c - 1/2) 2^q    if v has regular spacing
             vl = (c - 1/4) 2^q    otherwise
         and
             vr = (c + 1/2) 2^q
         These numbers are the lower and upper boundaries of the rounding
         interval Rv of v. They are included in Rv iff c is even. That is
-            Rv = [vl, vr]    if    c is even
+            Rv = [vl, vr]    if c is even
             Rv = (vl, vr)    otherwise
 
         out numerically indicates whether the boundaries of Rv are excluded:
@@ -294,27 +298,27 @@ final public class DoubleToDecimal {
         long cbr;
         long cbl;
         int k;
-        int shift;
+        int h;
         if (c != C_MIN | q == Q_MIN) {
             // regular spacing
             cb = c << 1;
             cbr = cb + 1;
             k = flog10pow2(q);
-            shift = q + flog2pow10(-k) + 3;
+            h = q + flog2pow10(-k) + 3;
         } else {
             // irregular spacing
             cb = c << 2;
             cbr = cb + 2;
             k = flog10threeQuartersPow2(q);
-            shift = q + flog2pow10(-k) + 2;
+            h = q + flog2pow10(-k) + 2;
         }
         cbl = cb - 1;
 
         long g1 = floorPow10p1dHigh(-k);
         long g0 = floorPow10p1dLow(-k);
-        long vb  = rop(g1, g0, cb << shift);
-        long vbl = rop(g1, g0, cbl << shift);
-        long vbr = rop(g1, g0, cbr << shift);
+        long vb  = rop(g1, g0, cb << h);
+        long vbl = rop(g1, g0, cbl << h);
+        long vbr = rop(g1, g0, cbr << h);
 
         /*
         To include/exclude the left and right boundaries of the
@@ -371,14 +375,10 @@ final public class DoubleToDecimal {
         boolean uin = vbl + out <= s << 2;
         boolean win = (t << 2) + out <= vbr;
         if (uin != win) {
-            /*
-            Exactly one of s 10^k or t 10^k lies in Rv.
-             */
+            // Exactly one of s 10^k or t 10^k lies in Rv.
             return toChars(uin ? s : t, k);
         }
-        /*
-        Both s 10^k and t 10^k lie in Rv: determine the one closest to v.
-         */
+        // Both s 10^k and t 10^k lie in Rv: determine the one closest to v.
         long cmp = vb - (s + t << 1);
         return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
@@ -452,16 +452,16 @@ final public class DoubleToDecimal {
         int m = (int) (hm - 100_000_000 * h);
 
         if (0 < e && e <= 7) {
-            return toChars_1(h, m, l, e);
+            return toChars1(h, m, l, e);
         }
         if (-3 < e && e <= 0) {
-            return toChars_2(h, m, l, e);
+            return toChars2(h, m, l, e);
         }
-        return toChars_3(h, m, l, e);
+        return toChars3(h, m, l, e);
     }
 
     // 0 < e <= 7: plain format without leading zeroes.
-    private String toChars_1(int h, int m, int l, int e) {
+    private String toChars1(int h, int m, int l, int e) {
         appendDigit(h);
         /*
         See the discussion in toChar() for the replacement of the division
@@ -491,7 +491,7 @@ final public class DoubleToDecimal {
     }
 
     // -3 < e <= 0: plain format with leading zeroes.
-    private String toChars_2(int h, int m, int l, int e) {
+    private String toChars2(int h, int m, int l, int e) {
         appendDigit(0);
         append('.');
         for (; e < 0; ++e) {
@@ -504,7 +504,7 @@ final public class DoubleToDecimal {
     }
 
     // -3 >= e | e > 7: computerized scientific notation
-    private String toChars_3(int h, int m, int l, int e) {
+    private String toChars3(int h, int m, int l, int e) {
         appendDigit(h);
         append('.');
         append8Digits(m);
