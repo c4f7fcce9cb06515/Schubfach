@@ -31,7 +31,8 @@ package math;
  */
 final class MathUtils {
     /*
-    For full details about this code see:
+    For full details about this code see the following reference:
+
         Giulietti, "The Schubfach way to render doubles",
         https://drive.google.com/open?id=1KLtG_LaIbK9ETXI290zqCxvBW94dj058
      */
@@ -80,7 +81,7 @@ final class MathUtils {
      * &lt; 10<sup><i>k</i>+1</sup>.
      * <p>
      * The result is correct when |{@code e}| &le; 5_456_721.
-     * Otherwise the result may or may not be correct.
+     * Otherwise the result is undefined.
      *
      * @param e The exponent of 2, which should meet
      *          |{@code e}| &le; 5_456_721 for safe results.
@@ -97,7 +98,7 @@ final class MathUtils {
      * <p>
      * The result is correct when
      * -2_956_395 &le; |{@code e}| &le; 2_500_325.
-     * Otherwise the result may or may not be correct.
+     * Otherwise the result is undefined.
      *
      * @param e The exponent of 2, which should meet
      *          -2_956_395 &le; |{@code e}| &le; 2_500_325 for safe results.
@@ -114,7 +115,7 @@ final class MathUtils {
      * &lt; 2<sup><i>k</i>+1</sup>.
      * <p>
      * The result is correct when |{@code e}| &le; 1_838_394.
-     * Otherwise the result may or may not be correct.
+     * Otherwise the result is undefined.
      *
      * @param e The exponent of 10, which should meet
      *          |{@code e}| &le; 1_838_394 for safe results.
@@ -125,10 +126,10 @@ final class MathUtils {
     }
 
     /**
-     * Let 10<sup>{@code e}</sup> = <i>beta</i> 2<sup><i>r</i></sup>,
-     * for the unique pair of integer <i>r</i> and real <i>beta</i> meeting
-     * 2<sup>125</sup> &le; beta &lt; 2<sup>126</sup>.
-     * Further, let <i>g</i> = &lfloor;<i>beta</i>&rfloor; + 1.
+     * Let 10<sup>{@code e}</sup> = <i>&beta;</i> 2<sup><i>r</i></sup>,
+     * for the unique pair of integer <i>r</i> and real <i>&beta;</i> meeting
+     * 2<sup>125</sup> &le; <i>&beta;</i> &lt; 2<sup>126</sup>.
+     * Further, let <i>g</i> = &lfloor;<i>&beta;</i>&rfloor; + 1.
      * Split <i>g</i> into the higher 63 bits <i>g</i><sub>1</sub> and
      * the lower 63 bits <i>g</i><sub>0</sub>. Thus,
      * <i>g</i><sub>1</sub> =

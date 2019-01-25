@@ -28,40 +28,54 @@ import static math.MathUtils.*;
 
 /**
  * This class exposes a method to render a {@code float} as a string.
-
+ *
  * @author Raffaello Giulietti
  */
 final public class FloatToDecimal {
+    /*
+    For full details about this code see the following references:
 
-    // Precision of normal values in bits.
+    [1] Giulietti, "The Schubfach way to render doubles",
+        https://drive.google.com/open?id=1KLtG_LaIbK9ETXI290zqCxvBW94dj058
+
+    [2] IEEE Computer Society, "IEEE Standard for Floating-Point Arithmetic"
+
+    [3] Moeller & Granlund, "Improved division by invariant integers"
+
+    [4] Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
+     */
+
+    // The precision in bits.
     private static final int P = 24;
 
-    // Length in bits of the exponent field.
+    // Exponent width in bits.
     private static final int W = (Float.SIZE - 1) - (P - 1);
 
-    // Minimum value of the exponent.
+    // Minimum value of the exponent: -(2^(W-1)) - P + 3.
     private static final int Q_MIN = (-1 << W - 1) - P + 3;
 
-    // Minimum value of the coefficient of a normal value.
+    // Minimum value of the significand of a normal value: 2^(P-1).
     private static final int C_MIN = 1 << P - 1;
 
-    // Mask to extract the IEEE 754-2008 biased exponent.
+    // Mask to extract the biased exponent.
     private static final int BQ_MASK = (1 << W) - 1;
 
-    // Mask to extract the IEEE 754-2008 fraction bits.
+    // Mask to extract the fraction bits.
     private static final int T_MASK = (1 << P - 1) - 1;
 
-    // H = min {n integer | 10^(n-1) > 2^P}
+    /*
+    H is the minimal number of decimal digits needed to ensure that
+        for all finite v, round-to-half-even(toString(v)) = v
+     */
     private static final int H = 9;
 
-    // used in rop()
+    // Used in rop().
     private static final long MASK_31 = (1L << 31) - 1;
 
-    // used in the left-to-right extraction of the digits
-    private static final int LTR = 28;
-    private static final int MASK_LTR = (1 << LTR) - 1;
+    // Used for digit extraction in toChars() and its dependencies.
+    private static final int MASK_28 = (1 << 28) - 1;
 
-    // for thread-safety, each thread gets its own instance of this class
+    // For thread-safety, each thread gets its own instance of this class.
     private static final ThreadLocal<FloatToDecimal> threadLocal =
             ThreadLocal.withInitial(FloatToDecimal::new);
 
@@ -74,7 +88,7 @@ final public class FloatToDecimal {
      */
     private final byte[] buf = new byte[H + 6];
 
-    // index of rightmost valid character
+    // Index into buf of rightmost valid character.
     private int index;
 
     private FloatToDecimal() {
@@ -85,108 +99,111 @@ final public class FloatToDecimal {
      *
      * <p>The characters of the result are all drawn from the ASCII set.
      * <ul>
-     *     <li> Any NaN, whether quiet or signaling, is rendered symbolically
-     *     as {@code "NaN"}, regardless of the sign bit.
-     *     <li> The infinities +&infin; and -&infin; are rendered as
-     *     {@code "Infinity"} and {@code "-Infinity"}, respectively.
-     *     <li> The positive and negative zeroes are rendered as
-     *     {@code "0.0"} and {@code "-0.0"}, respectively.
-     *     <li> Otherwise {@code v} is finite and non-zero.
-     *     It is rendered in two stages:
-     *     <ul>
-     *         <li> <em>Selection of a decimal</em>: A well-specified non-zero
-     *         decimal <i>d</i><sub><code>v</code></sub> is selected
-     *         to represent {@code v}.
-     *         <li> <em>Formatting as a string</em>: The decimal
-     *         <i>d</i><sub><code>v</code></sub> is formatted as a string,
-     *         either in plain or in computerized scientific notation,
-     *         depending on its value.
-     *     </ul>
+     * <li> Any NaN, whether quiet or signaling, is rendered symbolically
+     * as {@code "NaN"}, regardless of the sign bit.
+     * <li> The infinities +&infin; and -&infin; are rendered as
+     * {@code "Infinity"} and {@code "-Infinity"}, respectively.
+     * <li> The positive and negative zeroes are rendered as
+     * {@code "0.0"} and {@code "-0.0"}, respectively.
+     * <li> A finite negative {@code v} is rendered as the sign
+     * '{@code -}' followed by the rendering of the magnitude -{@code v}.
+     * <li> A finite positive {@code v} is rendered in two stages:
+     * <ul>
+     * <li> <em>Selection of a decimal</em>: A well-specified
+     * decimal <i>d</i><sub><code>v</code></sub> is selected
+     * to represent {@code v}.
+     * <li> <em>Formatting as a string</em>: The decimal
+     * <i>d</i><sub><code>v</code></sub> is formatted as a string,
+     * either in plain or in computerized scientific notation,
+     * depending on its value.
+     * </ul>
      * </ul>
      *
-     * <p>The selected decimal <i>d</i><sub><code>v</code></sub> has
-     * a length <i>n</i> if it can be written as
-     * <i>d</i><sub><code>v</code></sub> = <i>d</i>&middot;10<sup><i>i</i></sup>
-     * for some integers <i>i</i> and <i>d</i> meeting
-     * 10<sup><i>n</i>-1</sup> &le; |<i>d</i>| &lt; 10<sup><i>n</i></sup>.
-     * The decimal <i>d</i><sub><code>v</code></sub> has <em>all</em> the
-     * following properties:
+     * <p>Here a <em>decimal</em> is a number of the form
+     * <i>d</i>&times;10<sup><i>i</i></sup>
+     * for some (unique) integers <i>d</i> &gt; 0 and <i>i</i> such that
+     * <i>d</i> is not a multiple of 10.
+     * These integers are the <em>significand</em> and
+     * the <em>exponent</em>, respectively, of the decimal.
+     * The <em>length</em> of the decimal is the (unique)
+     * integer <i>n</i> meeting
+     * 10<sup><i>n</i>-1</sup> &le; <i>d</i> &lt; 10<sup><i>n</i></sup>.
+     *
+     * <p>The selection of the decimal <i>d</i><sub><code>v</code></sub>
+     * for a finite positive {@code v} proceeds as if the following
+     * steps were carried out:
      * <ul>
-     *     <li> It rounds to {@code v} according to the usual round-to-closest
-     *     rule of IEEE 754 floating-point arithmetic.
-     *     <li> Among the latter, it has a length of 2 or more.
-     *     <li> Among the latter, it has the minimal length.
-     *     <li> Among the latter, it is the one closest to {@code v}. Or
-     *     if there are two that are equally close to {@code v}, it is the one
-     *     whose least significant digit is even.
-     * </ul>
-     * More formally, let <i>x</i> = <i>d'</i>&middot;10<sup><i>i'</i></sup>
-     * &ne; <i>d</i><sub><code>v</code></sub> be any other decimal that rounds
-     * to {@code v} according to IEEE 754 and of a length <i>n'</i>. Then:
-     * <ul>
-     *     <li> either <i>n'</i> = 1, thus <i>x</i> is too short;
-     *     <li> or <i>n'</i> &gt; <i>n</i>, thus <i>x</i> is too long;
-     *     <li> or <i>n'</i> = <i>n</i> and
-     *     <ul>
-     *         <li> either |<i>d</i><sub><code>v</code></sub> - {@code v}| &lt;
-     *         |<i>x</i> - {@code v}|: thus <i>x</i> is farther from {@code v};
-     *         <li> or |<i>d</i><sub><code>v</code></sub> - {@code v}| =
-     *         |<i>x</i> - {@code v}| and <i>d</i> is even while <i>d'</i> is
-     *         odd
-     *     </ul>
+     * <li>Collect in set <i>S</i> all decimals that round to {@code v}
+     * according to the usual round-to-closest rule of
+     * IEEE 754 floating-point arithmetic.
+     * <li>Let <i>m</i> be the minimal length of the decimals in <i>S</i>.
+     * <li>When <i>m</i> &gt; 1, collect in set <i>T</i> all decimals
+     * of <i>S</i> with length <i>m</i>.
+     * Otherwise <i>m</i> = 1: collect in set <i>T</i> all decimals
+     * in <i>S</i> with length 1 or with length 2.
+     * <li>Select as <i>d</i><sub><code>v</code></sub>
+     * the decimal in <i>T</i> that is closest to {@code v}.
+     * Or if there are two decimals in <i>T</i> equally close to {@code v},
+     * select the one with the even significand (there is exactly one).
      * </ul>
      *
-     * <p>The selected decimal <i>d</i><sub><code>v</code></sub> is then
-     * formatted as a string. If <i>d</i><sub><code>v</code></sub> &lt; 0,
-     * the first character of the string is the sign '{@code -}'.
-     * Let |<i>d</i><sub><code>v</code></sub>| =
-     * <i>f</i>&middot;10<sup><i>e</i></sup>, for the unique pair of
-     * integer <i>e</i> and real <i>f</i> meeting 1 &le; <i>f</i> &lt; 10.
-     * Also, let the decimal expansion of <i>f</i> be
-     * <i>f</i><sub>1</sub>&thinsp;.&thinsp;<i>f</i><sub>2</sub>&thinsp;<!--
-     * -->&hellip;&thinsp;<i>f</i><sub><i>m</i></sub>,
-     * with <i>m</i> &ge; 1 and <i>f</i><sub><i>m</i></sub> &ne; 0.
+     * <p>The (uniquely) selected decimal <i>d</i><sub><code>v</code></sub>
+     * is then formatted.
+     *
+     * <p>Let <i>d</i>, <i>i</i> and <i>n</i> be the significand, exponent and
+     * length of <i>d</i><sub><code>v</code></sub>, respectively.
+     * Further, let <i>e</i> = <i>n</i> + <i>i</i> - 1 and let
+     * <i>d</i><sub>1</sub>&hellip;<i>d</i><sub><i>n</i></sub>
+     * be the usual decimal expansion of the significand.
+     * Note that <i>d</i><sub>1</sub> &ne; 0 &ne; <i>d</i><sub><i>n</i></sub>.
      * <ul>
-     *     <li>Case -3 &le; <i>e</i> &lt; 0:
-     *     |<i>d</i><sub><code>v</code></sub>| is formatted as
-     *     0&thinsp;.&thinsp;0&hellip;0<i>f</i><sub>1</sub>&hellip;<!--
-     *     --><i>f</i><sub><i>m</i></sub>,
-     *     where there are exactly -<i>e</i> leading zeroes before
-     *     <i>f</i><sub>1</sub>, including the zero to the left of the
-     *     decimal point; for example, {@code "0.01234"}.
-     *     <li>Case 0 &le; <i>e</i> &lt; 7:
-     *     <ul>
-     *         <li>Subcase <i>m</i> &lt; <i>e</i> + 2:
-     *         |<i>d</i><sub><code>v</code></sub>| is formatted as
-     *         <i>f</i><sub>1</sub>&hellip;<!--
-     *         --><i>f</i><sub><i>m</i></sub>0&hellip;0&thinsp;.&thinsp;0,
-     *         where there are exactly <i>e</i> + 2 - <i>m</i> trailing zeroes
-     *         after <i>f</i><sub><i>m</i></sub>, including the zero to the
-     *         right of the decimal point; for example, {@code "1200.0"}.
-     *         <li>Subcase <i>m</i> &ge; <i>e</i> + 2:
-     *         |<i>d</i><sub><code>v</code></sub>| is formatted as
-     *         <i>f</i><sub>1</sub>&hellip;<!--
-     *         --><i>f</i><sub><i>e</i>+1</sub>&thinsp;.&thinsp;<!--
-     *         --><i>f</i><sub><i>e</i>+2</sub>&hellip;<!--
-     *         --><i>f</i><sub><i>m</i></sub>; for example, {@code "1234.32"}.
-     *     </ul>
-     *     <li>Case <i>e</i> &lt; -3 or <i>e</i> &ge; 7:
-     *     computerized scientific notation is used to format
-     *     |<i>d</i><sub><code>v</code></sub>|, by combining <i>f</i> and
-     *     <i>e</i> separated by the exponent indicator '{@code E}'. The
-     *     exponent <i>e</i> is formatted as in {@link Integer#toString(int)}.
-     *     <ul>
-     *         <li>Subcase <i>m</i> = 1:
-     *         |<i>d</i><sub><code>v</code></sub>| is formatted as
-     *         <i>f</i><sub>1</sub>&thinsp;.&thinsp;0E<i>e</i>;
-     *         for example, {@code "2.0E23"}.
-     *         <li>Subcase <i>m</i> &gt; 1:
-     *         |<i>d</i><sub><code>v</code></sub>| is formatted as
-     *         <i>f</i><sub>1</sub>&thinsp;.&thinsp;<i>f</i><sub>2</sub><!--
-     *         -->&hellip;<i>f</i><sub><i>m</i></sub>E<i>e</i>;
-     *         for example, {@code "1.234E-32"}.
-     *     </ul>
-     *  </ul>
+     * <li>Case -3 &le; <i>e</i> &lt; 0:
+     * <i>d</i><sub><code>v</code></sub> is formatted as
+     * <code>0.0</code>&hellip;<code>0</code><!--
+     * --><i>d</i><sub>1</sub>&hellip;<i>d</i><sub><i>n</i></sub>,
+     * where there are exactly -(<i>n</i> + <i>i</i>) zeroes between
+     * the decimal point and <i>d</i><sub>1</sub>.
+     * For example, 123 &times; 10<sup>-4</sup> is formatted as
+     * {@code 0.0123}.
+     * <li>Case 0 &le; <i>e</i> &lt; 7:
+     * <ul>
+     * <li>Subcase <i>i</i> &ge; 0:
+     * <i>d</i><sub><code>v</code></sub> is formatted as
+     * <i>d</i><sub>1</sub>&hellip;<i>d</i><sub><i>n</i></sub><!--
+     * --><code>0</code>&hellip;<code>0.0</code>,
+     * where there are exactly <i>i</i> zeroes
+     * between <i>d</i><sub><i>n</i></sub> and the decimal point.
+     * For example, 123 &times; 10<sup>2</sup> is formatted as
+     * {@code 12300.0}.
+     * <li>Subcase <i>i</i> &lt; 0:
+     * <i>d</i><sub><code>v</code></sub> is formatted as
+     * <i>d</i><sub>1</sub>&hellip;<!--
+     * --><i>d</i><sub><i>n</i>+<i>i</i></sub>.<!--
+     * --><i>d</i><sub><i>n</i>+<i>i</i>+1</sub>&hellip;<!--
+     * --><i>d</i><sub><i>n</i></sub>.
+     * Thus, there are exactly -<i>i</i> digits to the right of
+     * the decimal point.
+     * For example, 123 &times; 10<sup>-1</sup> is formatted as
+     * {@code 12.3}.
+     * </ul>
+     * <li>Case <i>e</i> &lt; -3 or <i>e</i> &ge; 7:
+     * computerized scientific notation is used to format
+     * <i>d</i><sub><code>v</code></sub>.
+     * Here <i>e</i> is formatted as by {@link Integer#toString(int)}.
+     * <ul>
+     * <li>Subcase <i>n</i> = 1:
+     * <i>d</i><sub><code>v</code></sub> is formatted as
+     * <i>d</i><sub>1</sub><code>.0E</code><i>e</i>.
+     * For example, 1 &times; 10<sup>23</sup> is formatted as
+     * {@code 1.0E23}.
+     * <li>Subcase <i>n</i> &gt; 1:
+     * <i>d</i><sub><code>v</code></sub> is formatted as
+     * <i>d</i><sub>1</sub><code>.</code><i>d</i><sub>2</sub><!--
+     * -->&hellip;<i>d</i><sub><i>n</i></sub><code>E</code><i>e</i>.
+     * For example, 123 &times; 10<sup>-21</sup> is formatted as
+     * {@code 1.23E-19}.
+     * </ul>
+     * </ul>
      *
      * @param  v the {@code float} to be rendered.
      * @return a string rendering of the argument.
@@ -200,79 +217,84 @@ final public class FloatToDecimal {
     }
 
     private String toDecimal(float v) {
+        /*
+        For details not discussed here see reference [2].
+
+        Let
+            Q_MAX = 2^(W-1) - P
+            C_MAX = 2^P - 1
+        For finite v != 0, determine integers c and q such that
+            |v| = c 2^q    and
+            Q_MIN <= q <= Q_MAX    and
+                either    C_MIN <= c <= C_MAX              (normal value)
+                or        0 < c < C_MIN  and  q = Q_MIN    (subnormal value)
+         */
         int bits = floatToRawIntBits(v);
+        int t = bits & T_MASK;
         int bq = (bits >>> P - 1) & BQ_MASK;
         if (bq < BQ_MASK) {
             index = -1;
             if (bits < 0) {
                 append('-');
             }
-            if (bq > 0) {
-                return toDecimal(Q_MIN - 1 + bq, C_MIN | bits & T_MASK);
+            if (bq != 0) {
+                // normal value
+                return toDecimal(Q_MIN - 1 + bq, C_MIN | t);
             }
-            if (bits == 0x0000_0000) {
-                return "0.0";
+            if (t != 0) {
+                // subnormal value
+                return toDecimal(Q_MIN, t);
             }
-            if (bits == 0x8000_0000) {
-                return "-0.0";
-            }
-            return toDecimal(Q_MIN, bits & T_MASK);
+            return bits == 0 ? "0.0" : "-0.0";
         }
-        if (v != v) {
+        if (t != 0) {
             return "NaN";
         }
-        if (v == POSITIVE_INFINITY) {
-            return "Infinity";
-        }
-        return "-Infinity";
+        return bits > 0 ? "Infinity" : "-Infinity";
     }
 
-    // Let v = c * 2^q be the absolute value of the original float. Renders v.
     private String toDecimal(int q, int c) {
-        /*
-        out = 0, if the boundaries of the rounding interval are included
-        out = 1, if they are excluded
-        v = cb * 2^qb
-         */
+        // For full details see reference [1].
         int out = c & 0x1;
-
         long cb;
         long cbr;
         long cbl;
         int k;
-        int shift;
+        int h;
         if (c != C_MIN | q == Q_MIN) {
+            // regular spacing
             cb = c << 1;
             cbr = cb + 1;
             k = flog10pow2(q);
-            shift = q + flog2pow10(-k) + 34;
+            h = q + flog2pow10(-k) + 34;
         } else {
+            // irregular spacing
             cb = c << 2;
             cbr = cb + 2;
             k = flog10threeQuartersPow2(q);
-            shift = q + flog2pow10(-k) + 33;
+            h = q + flog2pow10(-k) + 33;
         }
         cbl = cb - 1;
 
         long g = floorPow10p1dHigh(-k) + 1;
-        int vn = rop(g, cb << shift);
-        int vnl = rop(g, cbl << shift);
-        int vnr = rop(g, cbr << shift);
+        int vb = rop(g, cb << h);
+        int vbl = rop(g, cbl << h);
+        int vbr = rop(g, cbr << h);
 
-        int s = vn >> 2;
+        int s = vb >> 2;
         if (s >= 100) {
-            int s10 = s - s % 10;
-            int t10 = s10 + 10;
-            boolean uin10 = vnl + out <= s10 << 2;
-            boolean win10 = (t10 << 2) + out <= vnr;
-            if (uin10 != win10) {
-                return toChars(uin10 ? s10 : t10, k);
+            /*
+            sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
+            This is the only place where a division (the %) is carried out.
+             */
+            int sp10 = s - s % 10;
+            int tp10 = sp10 + 10;
+            boolean upin = vbl + out <= sp10 << 2;
+            boolean wpin = (tp10 << 2) + out <= vbr;
+            if (upin != wpin) {
+                return toChars(upin ? sp10 : tp10, k);
             }
         } else if (s < 10) {
-            /*
-            Special cases that need to be made artificially longer to meet
-            the specification
-             */
             switch (s) {
                 case 1: return toChars(14, -46); // 1.4 * 10^-45
                 case 2: return toChars(28, -46); // 2.8 * 10^-45
@@ -284,101 +306,96 @@ final public class FloatToDecimal {
             }
         }
         int t = s + 1;
-        boolean uin = vnl + out <= s << 2;
-        boolean win = (t << 2) + out <= vnr;
+        boolean uin = vbl + out <= s << 2;
+        boolean win = (t << 2) + out <= vbr;
         if (uin != win) {
-            /*
-            Exactly one of s 10^k or t 10^k lies in Rv.
-             */
+            // Exactly one of s 10^k or t 10^k lies in Rv.
             return toChars(uin ? s : t, k);
         }
-        /*
-        Both s 10^k and t 10^k lie in Rv: determine the one closest to v.
-         */
-        int cmp = vn - (s + t << 1);
+        // Both s 10^k and t 10^k lie in Rv: determine the one closest to v.
+        int cmp = vb - (s + t << 1);
         return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
 
     private static int rop(long g, long cp) {
+        // For full details see reference [1].
         long x1 = multiplyHigh(g, cp);
         long vbp = x1 >> 31;
         return (int) (vbp | (x1 & MASK_31) + MASK_31 >>> 31);
     }
 
     /*
-    The method formats the number f * 10^e
-
-    Division is avoided altogether by replacing it with multiplications
-    and shifts. This has a noticeable impact on performance.
-    For more in-depth readings, see for example
-    * Moeller & Granlund, "Improved division by invariant integers"
-    * ridiculous_fish, "Labor of Division (Episode III): Faster Unsigned
-        Division by Constants"
-
-    Also, once the quotient is known, the remainder is computed indirectly.
+    Formats the decimal f 10^e.
      */
     private String toChars(int f, int e) {
-        // Normalize f to lie in the f-independent interval [10^(H-1), 10^H)
-        int len10 = flog10pow2(Integer.SIZE - numberOfLeadingZeros(f));
-        if (f >= pow10[len10]) {
-            len10 += 1;
+        /*
+        For details not discussed here see reference [3].
+
+        Determine len such that
+            10^(len-1) <= f < 10^len
+         */
+        int len = flog10pow2(Integer.SIZE - numberOfLeadingZeros(f));
+        if (f >= pow10[len]) {
+            len += 1;
         }
-        // 10^(len10-1) <= f < 10^len10
-        f *= pow10[H - len10];
-        e += len10;
 
         /*
-        Split the H = 9 digits of f into:
+        Let fp and ep be the original f and e, respectively.
+        Transform f and e to ensure
+            10^(H-1) <= f < 10^H
+            fp 10^ep = f 10^(e-H) = 0.f 10^e
+         */
+        f *= pow10[H - len];
+        e += len;
+
+        /*
+        The toChars?() methods perform left-to-right digits extraction
+        using ints, provided that the arguments are limited to 8 digits.
+        Therefore, split the H = 9 digits of f into:
             h = the most significant digit of f
             l = the last 8, least significant digits of f
 
-        Pictorially, the selected decimal to format as String is
-            0.hllllllll * 10^e
-        Depending on the value of e, plain or computerized scientific notation
-        is used.
+        To avoid divisions, it can be shown ([3]) that
+            floor(f / 10^8) = floor(1'441'151'881 f / 2^57)
          */
         int h = (int) (f * 1_441_151_881L >>> 57);
         int l = f - 100_000_000 * h;
 
-        /*
-        The left-to-right digits generation in toChars_* is inspired by
-        * Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
-         */
         if (0 < e && e <= 7) {
-            return toChars_1(h, l, e);
+            return toChars1(h, l, e);
         }
         if (-3 < e && e <= 0) {
-            return toChars_2(h, l, e);
+            return toChars2(h, l, e);
         }
-        return toChars_3(h, l, e);
+        return toChars3(h, l, e);
     }
 
-    // 0 < e <= 7: plain format without leading zeroes.
-    private String toChars_1(int h, int l, int e) {
+    private String toChars1(int h, int l, int e) {
+        /*
+        0 < e <= 7: plain format without leading zeroes.
+        The left-to-right digits generation is inspired by [4].
+         */
         appendDigit(h);
-        // y = (l + 1) * 2^LTR / 100_000_000 - 1;
-        int y = (int) (multiplyHigh(
-                (long) (l + 1) << LTR,
-                48_357_032_784_585_167L) >>> 18) - 1;
+        int y = y(l);
         int t;
         int i = 1;
         for (; i < e; ++i) {
             t = 10 * y;
-            appendDigit(t >>> LTR);
-            y = t & MASK_LTR;
+            appendDigit(t >>> 28);
+            y = t & MASK_28;
         }
         append('.');
         for (; i <= 8; ++i) {
             t = 10 * y;
-            appendDigit(t >>> LTR);
-            y = t & MASK_LTR;
+            appendDigit(t >>> 28);
+            y = t & MASK_28;
         }
         removeTrailingZeroes();
         return charsToString();
     }
 
-    // -3 < e <= 0: plain format with leading zeroes.
-    private String toChars_2(int h, int l, int e) {
+    private String toChars2(int h, int l, int e) {
+        // -3 < e <= 0: plain format with leading zeroes.
         appendDigit(0);
         append('.');
         for (; e < 0; ++e) {
@@ -390,8 +407,8 @@ final public class FloatToDecimal {
         return charsToString();
     }
 
-    // -3 >= e | e > 7: computerized scientific notation
-    private String toChars_3(int h, int l, int e) {
+    private String toChars3(int h, int l, int e) {
+        // -3 >= e | e > 7: computerized scientific notation
         appendDigit(h);
         append('.');
         append8Digits(l);
@@ -400,14 +417,13 @@ final public class FloatToDecimal {
         return charsToString();
     }
 
-    private void append8Digits(int v) {
-        // y = (v + 1) * 2^LTR / 100_000_000 - 1;
-        int y = (int) (multiplyHigh((long) (v + 1) << LTR,
-                48_357_032_784_585_167L) >>> 18) - 1;
+    private void append8Digits(int m) {
+        // The left-to-right digits generation is inspired by [4]
+        int y = y(m);
         for (int i = 0; i < 8; ++i) {
             int t = 10 * y;
-            appendDigit(t >>> LTR);
-            y = t & MASK_LTR;
+            appendDigit(t >>> 28);
+            y = t & MASK_28;
         }
     }
 
@@ -420,6 +436,15 @@ final public class FloatToDecimal {
         }
     }
 
+    /*
+    Computes floor((m + 1) 2^28 / 10^8) - 1, needed by [4], as in [3]
+     */
+    private int y(int m) {
+        return (int) (multiplyHigh(
+                (long) (m + 1) << 28,
+                48_357_032_784_585_167L) >>> 18) - 1;
+    }
+
     private void exponent(int e) {
         append('E');
         if (e < 0) {
@@ -430,7 +455,10 @@ final public class FloatToDecimal {
             appendDigit(e);
             return;
         }
-        // d = e / 10
+        /*
+        It can be shown ([3]) that
+            floor(e / 10) = floor(205 e / 2^11)
+         */
         int d = e * 205 >>> 11;
         appendDigit(d);
         appendDigit(e - 10 * d);
