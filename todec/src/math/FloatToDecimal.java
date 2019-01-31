@@ -109,7 +109,7 @@ final public class FloatToDecimal {
      * '{@code -}' followed by the rendering of the magnitude -{@code v}.
      * <li> A finite positive {@code v} is rendered in two stages:
      * <ul>
-     * <li> <em>Selection of a decimal</em>: A well-specified
+     * <li> <em>Selection of a decimal</em>: A well-defined
      * decimal <i>d</i><sub><code>v</code></sub> is selected
      * to represent {@code v}.
      * <li> <em>Formatting as a string</em>: The decimal
@@ -129,21 +129,20 @@ final public class FloatToDecimal {
      * integer <i>n</i> meeting
      * 10<sup><i>n</i>-1</sup> &le; <i>d</i> &lt; 10<sup><i>n</i></sup>.
      *
-     * <p>The selection of the decimal <i>d</i><sub><code>v</code></sub>
-     * for a finite positive {@code v} proceeds as if the following
-     * steps were carried out:
+     * <p>The decimal <i>d</i><sub><code>v</code></sub>
+     * for a finite positive {@code v} is defined as follows:
      * <ul>
-     * <li>Collect in set <i>S</i> all decimals that round to {@code v}
+     * <li>Let set <i>S</i> include all decimals that round to {@code v}
      * according to the usual round-to-closest rule of
      * IEEE 754 floating-point arithmetic.
-     * <li>Let <i>m</i> be the minimal length of the decimals in <i>S</i>.
-     * <li>When <i>m</i> &gt; 1, collect in set <i>T</i> all decimals
+     * <li>Let <i>m</i> be the minimal length over all decimals in <i>S</i>.
+     * <li>When <i>m</i> &ge; 2, let set <i>T</i> include all decimals
      * of <i>S</i> with length <i>m</i>.
-     * Otherwise <i>m</i> = 1: collect in set <i>T</i> all decimals
+     * Otherwise <i>m</i> = 1: let set <i>T</i> include all decimals
      * in <i>S</i> with length 1 or with length 2.
-     * <li>Select as <i>d</i><sub><code>v</code></sub>
+     * <li>Define <i>d</i><sub><code>v</code></sub> as
      * the decimal in <i>T</i> that is closest to {@code v}.
-     * Or if there are two decimals in <i>T</i> equally close to {@code v},
+     * Or if there are two such decimals in <i>T</i>,
      * select the one with the even significand (there is exactly one).
      * </ul>
      *
@@ -181,7 +180,7 @@ final public class FloatToDecimal {
      * --><i>d</i><sub><i>n</i>+<i>i</i></sub>.<!--
      * --><i>d</i><sub><i>n</i>+<i>i</i>+1</sub>&hellip;<!--
      * --><i>d</i><sub><i>n</i></sub>.
-     * Thus, there are exactly -<i>i</i> digits to the right of
+     * There are exactly -<i>i</i> digits to the right of
      * the decimal point.
      * For example, 123 &times; 10<sup>-1</sup> is formatted as
      * {@code 12.3}.
