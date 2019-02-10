@@ -133,14 +133,14 @@ final public class DoubleToDecimal {
      * <p>The decimal <i>d</i><sub><code>v</code></sub>
      * for a finite positive {@code v} is defined as follows:
      * <ul>
-     * <li>Let <i>S</i> be the set of all decimals that round to {@code v}
+     * <li>Let <i>R</i> be the set of all decimals that round to {@code v}
      * according to the usual round-to-closest rule of
      * IEEE 754 floating-point arithmetic.
-     * <li>Let <i>m</i> be the minimal length over all decimals in <i>S</i>.
+     * <li>Let <i>m</i> be the minimal length over all decimals in <i>R</i>.
      * <li>When <i>m</i> &ge; 2, let <i>T</i> be the set of all decimals
-     * in <i>S</i> with length <i>m</i>.
+     * in <i>R</i> with length <i>m</i>.
      * Otherwise, let <i>T</i> be the set of all decimals
-     * in <i>S</i> with length 1 or 2.
+     * in <i>R</i> with length 1 or 2.
      * <li>Define <i>d</i><sub><code>v</code></sub> as
      * the decimal in <i>T</i> that is closest to {@code v}.
      * Or if there are two such decimals in <i>T</i>,
