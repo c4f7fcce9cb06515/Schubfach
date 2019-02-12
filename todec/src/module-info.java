@@ -20,6 +20,10 @@
  * THE SOFTWARE.
  */
 
+/*
+Not a fully fledged module.
+Just exploits the internal-details-hiding capabilities of Java modules.
+ */
 module todec {
     exports math;
 }
