@@ -39,7 +39,7 @@ public class D2DBenchmark {
     private static final DecimalFormat intFormat =
             new DecimalFormat("#,##0");
     private static final int RUNS_PER_ARRAY = 5;
-    private static final int ARRAYS_PER_MAIN = 5;
+    private static final int ARRAYS_PER_MAIN = 3;
     private static Random r;
 
     private static final boolean CHECK_BACK_CONVERSION = false;
