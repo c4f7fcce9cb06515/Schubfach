@@ -276,8 +276,8 @@ final public class DoubleToDecimal {
         }
         cbl = cb - 1;
 
-        long g1 = floorPow10p1dHigh(-k);
-        long g0 = floorPow10p1dLow(-k);
+        long g1 = g1(-k);
+        long g0 = g0(-k);
         long vb = rop(g1, g0, cb << h);
         long vbl = rop(g1, g0, cbl << h);
         long vbr = rop(g1, g0, cbr << h);
@@ -498,6 +498,9 @@ final public class DoubleToDecimal {
         buf[++index] = (byte) ('0' + d);
     }
 
+    /*
+    Using the deprecated, yet public constructor enhances performance.
+     */
     private String charsToString() {
         return new String(buf, 0, 0, index + 1);
     }

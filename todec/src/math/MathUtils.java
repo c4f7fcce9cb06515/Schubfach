@@ -47,7 +47,7 @@ final class MathUtils {
     private static final int Q_2 = 38;
     private static final long C_2 = 913_124_641_741L;
 
-    // The minimum and maximum exponents for floorPow10p1dHigh(int)
+    // The minimum and maximum exponents for g1(int)
     static final int MIN_EXP = -292;
     static final int MAX_EXP = 324;
 
@@ -140,7 +140,7 @@ final class MathUtils {
      * <i>g</i> - <i>g</i><sub>1</sub> 2<sup>63</sup>.
      * <p>
      * This method returns <i>g</i><sub>1</sub> while
-     * {@link #floorPow10p1dLow(int)} returns <i>g</i><sub>0</sub>.
+     * {@link #g0(int)} returns <i>g</i><sub>0</sub>.
      * <p>
      * If needed, the exponent <i>r</i> can be computed as
      * <i>r</i> = {@code flog2pow10(e)} - 125 (see {@link #flog2pow10(int)}).
@@ -150,29 +150,28 @@ final class MathUtils {
      *          {@link #MAX_EXP}.
      * @return <i>g</i><sub>1</sub> as described above.
      */
-    static long floorPow10p1dHigh(int e) {
-        return floorPow10p1d[e - MIN_EXP << 1];
+    static long g1(int e) {
+        return g[e - MIN_EXP << 1];
     }
 
     /**
      * Returns <i>g</i><sub>0</sub> as described in
-     * {@link #floorPow10p1dHigh(int)}.
+     * {@link #g1(int)}.
      *
      * @param e The exponent of 10,
      *          which must meet {@link #MIN_EXP} &le; {@code e} &le;
      *          {@link #MAX_EXP}.
      * @return <i>g</i><sub>0</sub> as described in
-     * {@link #floorPow10p1dHigh(int)}.
+     * {@link #g1(int)}.
      */
-    static long floorPow10p1dLow(int e) {
-        return floorPow10p1d[e - MIN_EXP << 1 | 1];
+    static long g0(int e) {
+        return g[e - MIN_EXP << 1 | 1];
     }
 
     /**
-     * The precomputed values for {@link #floorPow10p1dHigh(int)} and
-     * {@link #floorPow10p1dLow(int)}.
+     * The precomputed values for {@link #g1(int)} and {@link #g0(int)}.
      */
-    private static final long[] floorPow10p1d = {
+    private static final long[] g = {
         /* -292 */ 0x7FBB_D8FE_5F5E_6E27L, 0x497A_3A27_04EE_C3DFL,
         /* -291 */ 0x4FD5_679E_FB9B_04D8L, 0x5DEC_6458_6315_3A6CL,
         /* -290 */ 0x63CA_C186_BA81_C60EL, 0x7567_7D6E_7BDA_8906L,

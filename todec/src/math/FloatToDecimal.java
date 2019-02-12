@@ -276,7 +276,7 @@ final public class FloatToDecimal {
         }
         cbl = cb - 1;
 
-        long g = floorPow10p1dHigh(-k) + 1;
+        long g = g1(-k) + 1;
         int vb = rop(g, cb << h);
         int vbl = rop(g, cbl << h);
         int vbr = rop(g, cbr << h);
@@ -472,6 +472,9 @@ final public class FloatToDecimal {
         buf[++index] = (byte) ('0' + d);
     }
 
+    /*
+    Using the deprecated, yet public constructor enhances performance.
+     */
     private String charsToString() {
         return new String(buf, 0, 0, index + 1);
     }
