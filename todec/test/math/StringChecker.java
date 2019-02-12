@@ -26,6 +26,11 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.math.BigDecimal;
 
+/*
+A checker for the Javadoc specification.
+It just relies on straightforward use of (expensive) BigDecimal arithmetic,
+not optimized at all.
+ */
 abstract class StringChecker {
 
     private String s;

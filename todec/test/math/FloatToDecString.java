@@ -72,6 +72,7 @@ public class FloatToDecString {
         toDec(MAX_VALUE);
         toDec(POSITIVE_INFINITY);
         toDec(NaN);
+
         /*
         Quiet NaNs have the most significant bit of the mantissa as 1,
         while signaling NaNs have it as 0.
@@ -82,6 +83,10 @@ public class FloatToDecString {
         toDec(intBitsToFloat(0x7F80_0001));
         toDec(intBitsToFloat(0xFFC0_0001));
         toDec(intBitsToFloat(0xFF80_0001));
+
+        /*
+        All values treated specially by Schubfach
+         */
         toDec(1.4E-45F);
         toDec(2.8E-45F);
         toDec(4.2E-45F);

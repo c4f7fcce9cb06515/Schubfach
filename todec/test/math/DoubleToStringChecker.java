@@ -85,7 +85,7 @@ class DoubleToStringChecker extends StringChecker {
 
     @Override
     boolean isNaN() {
-        return v != v;
+        return Double.isNaN(v);
     }
 
 }

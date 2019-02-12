@@ -85,7 +85,7 @@ class FloatToStringChecker extends StringChecker {
 
     @Override
     boolean isNaN() {
-        return v != v;
+        return Float.isNaN(v);
     }
 
 }

@@ -66,7 +66,7 @@ public class MathUtilsChecks {
         // double check that 2^125 <= g < 2^126
         check(g.signum() > 0 && g.bitLength() == 126);
 
-        // see javadoc of MathUtils.floorPow10p1dHigh(int)
+        // see javadoc of MathUtils.g1(int)
         int r = flog2pow10(e) - 125;
 
         /*
@@ -131,11 +131,11 @@ public class MathUtilsChecks {
 
     /*
     Verifies the soundness of the values returned by
-    floorPow10p1dHigh() and floorPow10p1dLow().
+    g1() and g0().
      */
     private static void testPow10Table() {
         for (int e = MIN_EXP; e <= MAX_EXP; ++e) {
-            checkPow10(e, floorPow10p1dHigh(e), floorPow10p1dLow(e));
+            checkPow10(e, g1(e), g0(e));
         }
     }
 

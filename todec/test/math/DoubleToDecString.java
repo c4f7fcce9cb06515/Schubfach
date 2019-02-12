@@ -71,6 +71,7 @@ public class DoubleToDecString {
         toDec(MAX_VALUE);
         toDec(POSITIVE_INFINITY);
         toDec(NaN);
+
         /*
         Quiet NaNs have the most significant bit of the mantissa as 1,
         while signaling NaNs have it as 0.
@@ -81,6 +82,10 @@ public class DoubleToDecString {
         toDec(longBitsToDouble(0x7FF0_0000_0000_0001L));
         toDec(longBitsToDouble(0xFFF8_0000_0000_0001L));
         toDec(longBitsToDouble(0xFFF0_0000_0000_0001L));
+
+        /*
+        All values treated specially by Schubfach
+         */
         toDec(4.9E-324);
         toDec(9.9E-324);
     }
