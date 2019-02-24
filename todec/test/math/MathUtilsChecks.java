@@ -143,9 +143,8 @@ public class MathUtilsChecks {
     Let
         k = floor(log10(3/4 2^e))
     The method verifies that
-        k = flog10threeQuartersPow2(e),    |e| <= 300_000
-    This range amply covers all binary exponents of IEEE 754 binary formats up
-    to binary256 (octuple precision), so also suffices for doubles and floats.
+        k = flog10threeQuartersPow2(e),    |e| <= 2_000
+    This range amply covers all binary exponents of doubles and floats.
 
     The first equation above is equivalent to
         10^k <= 3 2^(e-2) < 10^(k+1)
@@ -165,7 +164,7 @@ public class MathUtilsChecks {
         check(flog10threeQuartersPow2(1) == 0);
 
         /*
-        Now check the range -300_000 <= e <= 0.
+        Now check the range -2_000 <= e <= 0.
         By rewriting, the predicate to check is equivalent to
             3 10^(-k-1) < 2^(2-e) < 3 10^(-k)
         As e <= 0, it follows that 2^(2-e) >= 4 and the right inequality
@@ -190,7 +189,7 @@ public class MathUtilsChecks {
         BigInteger u = l.multiply(TEN);
         for (;;) {
             check(l.bitLength() <= 2 - e && 2 - e < u.bitLength());
-            if (e == -300_000) {
+            if (e == -2_000) {
                 break;
             }
             --e;
@@ -206,7 +205,7 @@ public class MathUtilsChecks {
         }
 
         /*
-        Finally, check the range 2 <= e <= 300_000.
+        Finally, check the range 2 <= e <= 2_000.
         In predicate
             10^k < 3 2^(e-2) < 10^(k+1)
         the right inequality shows that k >= 0 as soon as e >= 2.
@@ -233,7 +232,7 @@ public class MathUtilsChecks {
         u = u10.divide(THREE);
         for (;;) {
             check(l.bitLength() <= e - 2 && e - 2 < u.bitLength());
-            if (e == 300_000) {
+            if (e == 2_000) {
                 break;
             }
             ++e;
@@ -254,9 +253,8 @@ public class MathUtilsChecks {
     Let
         k = floor(log10(2^e))
     The method verifies that
-        k = flog10pow2(e),    |e| <= 300_000
-    This range amply covers all binary exponents of IEEE 754 binary formats up
-    to binary256 (octuple precision), so also suffices for doubles and floats.
+        k = flog10pow2(e),    |e| <= 2_000
+    This range amply covers all binary exponents of doubles and floats.
 
     The first equation above is equivalent to
         10^k <= 2^e < 10^(k+1)
@@ -278,7 +276,7 @@ public class MathUtilsChecks {
         check(flog10pow2(0) == 0);
 
         /*
-        Now check the range -300_000 <= e < 0.
+        Now check the range -2_000 <= e < 0.
         By inverting all quantities, the predicate to check is equivalent to
             10^(-k-1) < 2^(-e) < 10^(-k)
         As e < 0, it follows that 2^(-e) >= 2 and the right inequality
@@ -303,7 +301,7 @@ public class MathUtilsChecks {
         BigInteger u = l.multiply(TEN);
         for (;;) {
             check(l.bitLength() <= -e && -e < u.bitLength());
-            if (e == -300_000) {
+            if (e == -2_000) {
                 break;
             }
             --e;
@@ -319,7 +317,7 @@ public class MathUtilsChecks {
         }
 
         /*
-        Finally, in a similar vein, check the range 0 <= e <= 300_000.
+        Finally, in a similar vein, check the range 0 <= e <= 2_000.
         In predicate
             10^k < 2^e < 10^(k+1)
         the right inequality shows that k >= 0.
@@ -338,7 +336,7 @@ public class MathUtilsChecks {
         u = l.multiply(TEN);
         for (;;) {
             check(l.bitLength() <= e && e < u.bitLength());
-            if (e == 300_000) {
+            if (e == 2_000) {
                 break;
             }
             ++e;
@@ -358,9 +356,8 @@ public class MathUtilsChecks {
     Let
         k = floor(log2(10^e))
     The method verifies that
-        k = flog2pow10(e),    |e| <= 100_000
-    This range amply covers all decimal exponents of IEEE 754 binary formats up
-    to binary256 (octuple precision), so also suffices for doubles and floats.
+        k = flog2pow10(e),    |e| <= 500
+    This range amply covers all decimal exponents of doubles and floats.
 
     The first equation above is equivalent to
         2^k <= 10^e < 2^(k+1)
@@ -382,7 +379,7 @@ public class MathUtilsChecks {
         check(flog2pow10(0) == 0);
 
         /*
-        Now check the range -100_000 <= e < 0.
+        Now check the range -500 <= e < 0.
         By inverting all quantities, the predicate to check is equivalent to
             2^(-k-1) < 10^(-e) < 2^(-k)
         As e < 0, this leads to 10^(-e) >= 10 and the right inequality implies
@@ -397,7 +394,7 @@ public class MathUtilsChecks {
         BigInteger l = TEN;
         for (;;) {
             check(l.bitLength() == -k0);
-            if (e == -100_000) {
+            if (e == -500) {
                 break;
             }
             --e;
@@ -406,7 +403,7 @@ public class MathUtilsChecks {
         }
 
         /*
-        Finally check the range 0 < e <= 100_000.
+        Finally check the range 0 < e <= 500.
         From the predicate
             2^k < 10^e < 2^(k+1)
         as e > 0, it follows that 10^e >= 10 and the right inequality implies
@@ -421,7 +418,7 @@ public class MathUtilsChecks {
         l = TEN;
         for (;;) {
             check(l.bitLength() == k0 + 1);
-            if (e == 100_000) {
+            if (e == 500) {
                 break;
             }
             ++e;
