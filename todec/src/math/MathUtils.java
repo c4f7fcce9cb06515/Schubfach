@@ -98,11 +98,11 @@ final class MathUtils {
      * &lt; 10<sup><i>k</i>+1</sup>.
      * <p>
      * The result is correct when
-     * -2_956_395 &le; |{@code e}| &le; 2_500_325.
+     * -2_956_395 &le; {@code e} &le; 2_500_325.
      * Otherwise the result is undefined.
      *
      * @param e The exponent of 2, which should meet
-     *          -2_956_395 &le; |{@code e}| &le; 2_500_325 for safe results.
+     *          -2_956_395 &le; {@code e} &le; 2_500_325 for safe results.
      * @return &lfloor;log<sub>10</sub>(3/4 &middot;
      * 2<sup>{@code e}</sup>)&rfloor;.
      */
