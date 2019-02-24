@@ -70,7 +70,7 @@ final public class FloatToDecimal {
      */
     private static final int H = 9;
 
-    // Used in rop().
+    // Used in rpo().
     private static final long MASK_31 = (1L << 31) - 1;
 
     // Used for digit extraction in toChars() and its dependencies.
@@ -218,7 +218,7 @@ final public class FloatToDecimal {
 
     private String toDecimal(float v) {
         /*
-        For details not discussed here see reference [2].
+        For full details see reference [2].
 
         Let
             Q_MAX = 2^(W-1) - P
@@ -254,7 +254,25 @@ final public class FloatToDecimal {
     }
 
     private String toDecimal(int q, int c) {
-        // For full details see reference [1].
+        /*
+        For full details see reference [1].
+
+        The skeleton corresponds to figure 3, as discussed in section 8.1.
+        The efficient computations are those summarized in figure 6.
+        Also check the appendix.
+
+        Here's a correspondence between Java names and names in [1],
+        expressed as LaTeX source code and informally
+        cb:     \bar{c}     "c-bar"
+        cbr:    \bar{c}_r   "c-bar-r"
+        cbl:    \bar{c}_l   "c-bar-l"
+
+        vb:     \bar{v}     "v-bar"
+        vbr:    \bar{v}_r   "v-bar-r"
+        vbl:    \bar{v}_l   "v-bar-l"
+
+        rpo:    r'_o        "r-prime-o"
+         */
         int out = c & 0x1;
         long cb;
         long cbr;
@@ -265,21 +283,33 @@ final public class FloatToDecimal {
             // regular spacing
             cb = c << 1;
             cbr = cb + 1;
+
+            /*
+            k = floor(log_10(2^q))
+            h = q + floor(log_2(10^(-k))) + 34
+             */
             k = flog10pow2(q);
             h = q + flog2pow10(-k) + 34;
         } else {
             // irregular spacing
             cb = c << 2;
             cbr = cb + 2;
+
+            /*
+            k = floor(log_10(3/4 2^q))
+            h = q + floor(log_2(10^(-k))) + 33
+             */
             k = flog10threeQuartersPow2(q);
             h = q + flog2pow10(-k) + 33;
         }
         cbl = cb - 1;
 
+        // g is as in the appendix
         long g = g1(-k) + 1;
-        int vb = rop(g, cb << h);
-        int vbl = rop(g, cbl << h);
-        int vbr = rop(g, cbr << h);
+
+        int vb = rpo(g, cb << h);
+        int vbl = rpo(g, cbl << h);
+        int vbr = rpo(g, cbr << h);
 
         int s = vb >> 2;
         if (s >= 100) {
@@ -289,6 +319,12 @@ final public class FloatToDecimal {
              */
             int sp10 = s - s % 10;
             int tp10 = sp10 + 10;
+
+            /*
+            upin    iff    u' = sp10 10^k in Rv
+            wpin    iff    w' = tp10 10^k in Rv
+            See result 15.
+             */
             boolean upin = vbl + out <= sp10 << 2;
             boolean wpin = (tp10 << 2) + out <= vbr;
             if (upin != wpin) {
@@ -305,20 +341,34 @@ final public class FloatToDecimal {
                 case 9: return toChars(98, -46); // 9.8 * 10^-45
             }
         }
+
+        // 10 <= s < 100    or    s >= 100  and  u', w' not in Rv
         int t = s + 1;
+
+        /*
+        uin    iff    u = s 10^k in Rv
+        win    iff    w = t 10^k in Rv
+        See result 15.
+         */
         boolean uin = vbl + out <= s << 2;
         boolean win = (t << 2) + out <= vbr;
         if (uin != win) {
-            // Exactly one of s 10^k or t 10^k lies in Rv.
+            // Exactly one of u or w lies in Rv.
             return toChars(uin ? s : t, k);
         }
-        // Both s 10^k and t 10^k lie in Rv: determine the one closest to v.
+        /*
+        Both u and w lie in Rv: determine the one closest to v.
+        See result 15.
+         */
         int cmp = vb - (s + t << 1);
         return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
 
-    private static int rop(long g, long cp) {
-        // For full details see reference [1].
+    private static int rpo(long g, long cp) {
+        /*
+        For full details see reference [1].
+        See appendix and figure 7.
+         */
         long x1 = multiplyHigh(g, cp);
         long vbp = x1 >> 31;
         return (int) (vbp | (x1 & MASK_31) + MASK_31 >>> 31);
@@ -355,7 +405,7 @@ final public class FloatToDecimal {
             h = the most significant digit of f
             l = the last 8, least significant digits of f
 
-        To avoid divisions, it can be shown ([3]) that
+        To avoid divisions, it can be shown (see [3]) that
             floor(f / 10^8) = floor(1'441'151'881 f / 2^57)
          */
         int h = (int) (f * 1_441_151_881L >>> 57);
@@ -373,7 +423,7 @@ final public class FloatToDecimal {
     private String toChars1(int h, int l, int e) {
         /*
         0 < e <= 7: plain format without leading zeroes.
-        The left-to-right digits generation is inspired by [4].
+        Left-to-right digits extraction: algorithm 1 in [4].
          */
         appendDigit(h);
         int y = y(l);
@@ -418,7 +468,7 @@ final public class FloatToDecimal {
     }
 
     private void append8Digits(int m) {
-        // The left-to-right digits generation is inspired by [4]
+        // Left-to-right digits extraction: algorithm 1 in [4].
         int y = y(m);
         for (int i = 0; i < 8; ++i) {
             int t = 10 * y;
@@ -437,7 +487,8 @@ final public class FloatToDecimal {
     }
 
     /*
-    Computes floor((m + 1) 2^28 / 10^8) - 1, needed by [4], as in [3]
+    Computes floor((m + 1) 2^28 / 10^8) - 1 as in [3].
+    Needed by algorithm 1 in [4].
      */
     private int y(int m) {
         return (int) (multiplyHigh(
@@ -456,7 +507,7 @@ final public class FloatToDecimal {
             return;
         }
         /*
-        It can be shown ([3]) that
+        It can be shown (see [3]) that
             floor(e / 10) = floor(205 e / 2^11)
          */
         int d = e * 205 >>> 11;
