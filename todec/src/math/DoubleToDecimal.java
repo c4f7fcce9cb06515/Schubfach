@@ -284,7 +284,7 @@ final public class DoubleToDecimal {
         vbr:    \bar{v}_r   "v-bar-r"
         vbl:    \bar{v}_l   "v-bar-l"
 
-        rop:    r'_o        "r-prime-o"
+        rop:    r_o'        "r-o-prime"
          */
         int out = (int) c & 0x1;
         long cb;
