@@ -38,6 +38,10 @@ final class MathUtils {
         https://drive.google.com/open?id=1KLtG_LaIbK9ETXI290zqCxvBW94dj058
      */
 
+    // The minimum and maximum k
+    static final int MIN_K = -324;
+    static final int MAX_K = 292;
+
     // C_10 = floor(log10(2) * 2^Q_10), A_10 = floor(log10(3/4) * 2^Q_10)
     private static final int Q_10 = 41;
     private static final long C_10 = 661_971_961_083L;
@@ -47,14 +51,10 @@ final class MathUtils {
     private static final int Q_2 = 38;
     private static final long C_2 = 913_124_641_741L;
 
-    // The minimum and maximum exponents for g1(int)
-    static final int MIN_EXP = -292;
-    static final int MAX_EXP = 324;
-
     private MathUtils() {
     }
 
-    // pow10[e] = 10^e, 0 <= e <= 17
+    // pow10[e] = 10^e, 0 <= e <= DoubleToDecimal.H
     static final long[] pow10 = {
         1L,
         10L,
@@ -145,27 +145,23 @@ final class MathUtils {
      * If needed, the exponent <i>r</i> can be computed as
      * <i>r</i> = {@code flog2pow10(e)} - 125 (see {@link #flog2pow10(int)}).
      *
-     * @param e The exponent of 10,
-     *          which must meet {@link #MIN_EXP} &le; {@code e} &le;
-     *          {@link #MAX_EXP}.
+     * @param e The exponent of 10.
      * @return <i>g</i><sub>1</sub> as described above.
      */
     static long g1(int e) {
-        return g[e - MIN_EXP << 1];
+        return g[e + MAX_K << 1];
     }
 
     /**
      * Returns <i>g</i><sub>0</sub> as described in
      * {@link #g1(int)}.
      *
-     * @param e The exponent of 10,
-     *          which must meet {@link #MIN_EXP} &le; {@code e} &le;
-     *          {@link #MAX_EXP}.
+     * @param e The exponent of 10.
      * @return <i>g</i><sub>0</sub> as described in
      * {@link #g1(int)}.
      */
     static long g0(int e) {
-        return g[e - MIN_EXP << 1 | 1];
+        return g[e + MAX_K << 1 | 1];
     }
 
     /**
