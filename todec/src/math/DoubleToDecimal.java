@@ -23,7 +23,7 @@
 package math;
 
 import static java.lang.Double.*;
-import static java.lang.Long.numberOfLeadingZeros;
+import static java.lang.Long.*;
 import static java.lang.Math.multiplyHigh;
 import static math.MathUtils.*;
 
@@ -41,13 +41,24 @@ final public class DoubleToDecimal {
 
     [2] IEEE Computer Society, "IEEE Standard for Floating-Point Arithmetic"
 
-    [3] Moeller & Granlund, "Improved division by invariant integers"
+    [3] Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
 
-    [4] Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
+    Divisions are avoided for the benefit of those architectures that do not
+    provide specific machine instructions or where they are slow.
+    This is discussed in section 10 of [1].
      */
 
     // The precision in bits.
-    private static final int P = 53;
+    static final int P = 53;
+
+    // H is as in section 8 of [1].
+    static final int H = 17;
+
+    // 10^(MIN_EXP - 1) <= MIN_VALUE < 10^MIN_EXP
+    static final int MIN_EXP = -323;
+
+    // 10^(MAX_EXP - 1) <= MAX_VALUE < 10^MAX_EXP
+    static final int MAX_EXP = 309;
 
     // Exponent width in bits.
     private static final int W = (Double.SIZE - 1) - (P - 1);
@@ -64,16 +75,10 @@ final public class DoubleToDecimal {
     // Mask to extract the fraction bits.
     private static final long T_MASK = (1L << P - 1) - 1;
 
-    /*
-    H is the minimal number of decimal digits needed to ensure that
-        for all finite v, round-to-half-even(toString(v)) = v
-     */
-    private static final int H = 17;
-
-    // Used in rpo().
+    // Used in rop().
     private static final long MASK_63 = (1L << 63) - 1;
 
-    // Used for digit extraction in toChars() and its dependencies.
+    // Used for left-to-tight digit extraction.
     private static final int MASK_28 = (1 << 28) - 1;
 
     // For thread-safety, each thread gets its own instance of this class.
@@ -218,16 +223,15 @@ final public class DoubleToDecimal {
 
     private String toDecimal(double v) {
         /*
-        For full details see reference [2].
+        For full details see references [2] and [1].
 
         Let
             Q_MAX = 2^(W-1) - P
-            C_MAX = 2^P - 1
         For finite v != 0, determine integers c and q such that
             |v| = c 2^q    and
             Q_MIN <= q <= Q_MAX    and
-                either    C_MIN <= c <= C_MAX              (normal value)
-                or        0 < c < C_MIN  and  q = Q_MIN    (subnormal value)
+                either    2^(P-1) <= c < 2^P                 (normal)
+                or        0 < c < 2^(P-1)  and  q = Q_MIN    (subnormal)
          */
         long bits = doubleToRawLongBits(v);
         long t = bits & T_MASK;
@@ -238,8 +242,17 @@ final public class DoubleToDecimal {
                 append('-');
             }
             if (bq != 0) {
-                // normal value
-                return toDecimal(Q_MIN - 1 + bq, C_MIN | t);
+                // normal value. Here mq = -q
+                int mq = -Q_MIN + 1 - bq;
+                long c = C_MIN | t;
+                // The fast path discussed in section 8.3 of [1].
+                if (0 < mq & mq < P) {
+                    long f = c >> mq;
+                    if (f << mq == c) {
+                        return toChars(f, 0);
+                    }
+                }
+                return toDecimal(-mq, c);
             }
             if (t != 0) {
                 // subnormal value
@@ -261,7 +274,8 @@ final public class DoubleToDecimal {
         The efficient computations are those summarized in figure 6.
 
         Here's a correspondence between Java names and names in [1],
-        expressed as LaTeX source code and informally
+        expressed as approximate LaTeX source code and informally.
+        Other names are identical.
         cb:     \bar{c}     "c-bar"
         cbr:    \bar{c}_r   "c-bar-r"
         cbl:    \bar{c}_l   "c-bar-l"
@@ -270,7 +284,7 @@ final public class DoubleToDecimal {
         vbr:    \bar{v}_r   "v-bar-r"
         vbl:    \bar{v}_l   "v-bar-l"
 
-        rpo:    r'_o        "r-prime-o"
+        rop:    r'_o        "r-prime-o"
          */
         int out = (int) c & 0x1;
         long cb;
@@ -303,27 +317,31 @@ final public class DoubleToDecimal {
         }
         cbl = cb - 1;
 
-        // g1 and g0 are as in result 22, so g = g1 2^63 + g0
+        // g1 and g0 are as in section 9.8.3, so g = g1 2^63 + g0
         long g1 = g1(-k);
         long g0 = g0(-k);
 
-        long vb = rpo(g1, g0, cb << h);
-        long vbl = rpo(g1, g0, cbl << h);
-        long vbr = rpo(g1, g0, cbr << h);
+        long vb = rop(g1, g0, cb << h);
+        long vbl = rop(g1, g0, cbl << h);
+        long vbr = rop(g1, g0, cbr << h);
 
         long s = vb >> 2;
         if (s >= 100) {
             /*
             sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
-            This is the only place where a division (the %) is carried out.
+
+            The table in section 10 of [1] shows
+                s' =
+                floor(s / 10) = floor(s 115'292'150'460'684'698 / 2^60) =
+                floor(s 115'292'150'460'684'698 2^4 / 2^64)
              */
-            long sp10 = s - s % 10;
+            long sp10 = 10 * multiplyHigh(s, 115_292_150_460_684_698L << 4);
             long tp10 = sp10 + 10;
 
             /*
             upin    iff    u' = sp10 10^k in Rv
             wpin    iff    w' = tp10 10^k in Rv
-            See result 15.
+            See section 9.3.
              */
             boolean upin = vbl + out <= sp10 << 2;
             boolean wpin = (tp10 << 2) + out <= vbr;
@@ -345,7 +363,7 @@ final public class DoubleToDecimal {
         /*
         uin    iff    u = s 10^k in Rv
         win    iff    w = t 10^k in Rv
-        See result 15.
+        See section 9.3.
          */
         boolean uin = vbl + out <= s << 2;
         boolean win = (t << 2) + out <= vbr;
@@ -355,17 +373,14 @@ final public class DoubleToDecimal {
         }
         /*
         Both u and w lie in Rv: determine the one closest to v.
-        See result 15.
+        See section 9.3.
          */
         long cmp = vb - (s + t << 1);
         return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
 
-    private static long rpo(long g1, long g0, long cp) {
-        /*
-        For full details see reference [1].
-        See section 9.9 and figure 5.
-         */
+    private static long rop(long g1, long g0, long cp) {
+        // See section 9.9 and figure 5 of [1].
         long x1 = multiplyHigh(g0, cp);
         long y0 = g1 * cp;
         long y1 = multiplyHigh(g1, cp);
@@ -379,7 +394,7 @@ final public class DoubleToDecimal {
      */
     private String toChars(long f, int e) {
         /*
-        For details not discussed here see reference [3].
+        For details not discussed here see section 10 of [1].
 
         Determine len such that
             10^(len-1) <= f < 10^len
@@ -406,15 +421,13 @@ final public class DoubleToDecimal {
             m = the next 8 most significant digits of f
             l = the last 8, least significant digits of f
 
-        To avoid divisions, it can be shown (see [3]) that
-            floor(f / 10^8) =
-                floor(193'428'131'138'340'668 f / 2^84) =
-                floor(48'357'032'784'585'167 f / 2^82) =
-                floor(floor(48'357'032'784'585'167 f / 2^64) / 2^18)
-        and similarly
+        The table in section 10 of [1] shows
+            floor(f / 10^8) = floor(193'428'131'138'340'668 f / 2^84) =
+            floor(floor(193'428'131'138'340'668 f / 2^64) / 2^20)
+        and
             floor(hm / 10^8) = floor(1'441'151'881 hm / 2^57)
          */
-        long hm = multiplyHigh(f, 48_357_032_784_585_167L) >>> 18;
+        long hm = multiplyHigh(f, 193_428_131_138_340_668L) >>> 20;
         int l = (int) (f - 100_000_000L * hm);
         int h = (int) (hm * 1_441_151_881L >>> 57);
         int m = (int) (hm - 100_000_000 * h);
@@ -431,7 +444,8 @@ final public class DoubleToDecimal {
     private String toChars1(int h, int m, int l, int e) {
         /*
         0 < e <= 7: plain format without leading zeroes.
-        Left-to-right digits extraction: algorithm 1 in [4].
+        Left-to-right digits extraction:
+        algorithm 1 in [3], with b = 10, k = 8, n = 28.
          */
         appendDigit(h);
         int y = y(m);
@@ -483,7 +497,10 @@ final public class DoubleToDecimal {
     }
 
     private void append8Digits(int m) {
-        // Left-to-right digits extraction: algorithm 1 in [4].
+        /*
+        Left-to-right digits extraction:
+        algorithm 1 in [3], with b = 10, k = 8, n = 28.
+         */
         int y = y(m);
         for (int i = 0; i < 8; ++i) {
             int t = 10 * y;
@@ -496,19 +513,24 @@ final public class DoubleToDecimal {
         while (buf[index] == '0') {
             --index;
         }
+        // ... but do not remove the one directly to the right of '.'
         if (buf[index] == '.') {
             ++index;
         }
     }
 
-    /*
-    Computes floor((m + 1) 2^28 / 10^8) - 1 as in [3].
-    Needed by algorithm 1 in [4].
-     */
-    private int y(int m) {
+    private int y(int a) {
+        /*
+        Algorithm 1 in [3] needs computation of
+            floor((a + 1) 2^n / b^k) - 1
+        with a < 10^8, b = 10, k = 8, n = 28.
+        Noting that
+            (a + 1) 2^n <= 10^8 2^28 < 10^17
+        the table in section 10 of [1] leads to the code below.
+         */
         return (int) (multiplyHigh(
-                (long) (m + 1) << 28,
-                48_357_032_784_585_167L) >>> 18) - 1;
+                (long) (a + 1) << 28,
+                193_428_131_138_340_668L) >>> 20) - 1;
     }
 
     private void exponent(int e) {
@@ -522,12 +544,12 @@ final public class DoubleToDecimal {
             return;
         }
         /*
-        It can be shown (see [3]) that
-            floor(e / 10) = floor(205 e / 2^11)
+        The table in section 10 of [1] shows
+            floor(e / 10) = floor(103 e / 2^10)
             floor(e / 100) = floor(1'311 e / 2^17)
          */
         if (e < 100) {
-            int d = e * 205 >>> 11;
+            int d = e * 103 >>> 10;
             appendDigit(d);
             appendDigit(e - 10 * d);
             return;
@@ -535,7 +557,7 @@ final public class DoubleToDecimal {
         int d = e * 1_311 >>> 17;
         appendDigit(d);
         e -= 100 * d;
-        d = e * 205 >>> 11;
+        d = e * 103 >>> 10;
         appendDigit(d);
         appendDigit(e - 10 * d);
     }

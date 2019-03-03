@@ -23,7 +23,7 @@
 package math;
 
 import static java.lang.Float.*;
-import static java.lang.Integer.numberOfLeadingZeros;
+import static java.lang.Integer.*;
 import static java.lang.Math.multiplyHigh;
 import static math.MathUtils.*;
 
@@ -41,13 +41,24 @@ final public class FloatToDecimal {
 
     [2] IEEE Computer Society, "IEEE Standard for Floating-Point Arithmetic"
 
-    [3] Moeller & Granlund, "Improved division by invariant integers"
+    [3] Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
 
-    [4] Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
+    Divisions are avoided for the benefit of those architectures that do not
+    provide specific machine instructions or where they are slow.
+    This is discussed in section 10 of [1].
      */
 
     // The precision in bits.
-    private static final int P = 24;
+    static final int P = 24;
+
+    // H is as in section 8 of [1].
+    static final int H = 9;
+
+    // 10^(MIN_EXP - 1) <= MIN_VALUE < 10^MIN_EXP
+    static final int MIN_EXP = -44;
+
+    // 10^(MAX_EXP - 1) <= MAX_VALUE < 10^MAX_EXP
+    static final int MAX_EXP = 39;
 
     // Exponent width in bits.
     private static final int W = (Float.SIZE - 1) - (P - 1);
@@ -64,16 +75,10 @@ final public class FloatToDecimal {
     // Mask to extract the fraction bits.
     private static final int T_MASK = (1 << P - 1) - 1;
 
-    /*
-    H is the minimal number of decimal digits needed to ensure that
-        for all finite v, round-to-half-even(toString(v)) = v
-     */
-    private static final int H = 9;
-
-    // Used in rpo().
+    // Used in rop().
     private static final long MASK_31 = (1L << 31) - 1;
 
-    // Used for digit extraction in toChars() and its dependencies.
+    // Used for left-to-tight digit extraction.
     private static final int MASK_28 = (1 << 28) - 1;
 
     // For thread-safety, each thread gets its own instance of this class.
@@ -218,16 +223,15 @@ final public class FloatToDecimal {
 
     private String toDecimal(float v) {
         /*
-        For full details see reference [2].
+        For full details see references [2] and [1].
 
         Let
             Q_MAX = 2^(W-1) - P
-            C_MAX = 2^P - 1
         For finite v != 0, determine integers c and q such that
             |v| = c 2^q    and
             Q_MIN <= q <= Q_MAX    and
-                either    C_MIN <= c <= C_MAX              (normal value)
-                or        0 < c < C_MIN  and  q = Q_MIN    (subnormal value)
+                either    2^(P-1) <= c < 2^P                 (normal)
+                or        0 < c < 2^(P-1)  and  q = Q_MIN    (subnormal)
          */
         int bits = floatToRawIntBits(v);
         int t = bits & T_MASK;
@@ -238,8 +242,17 @@ final public class FloatToDecimal {
                 append('-');
             }
             if (bq != 0) {
-                // normal value
-                return toDecimal(Q_MIN - 1 + bq, C_MIN | t);
+                // normal value. Here mq = -q
+                int mq = -Q_MIN + 1 - bq;
+                int c = C_MIN | t;
+                // The fast path discussed in section 8.3 of [1].
+                if (0 < mq & mq < P) {
+                    int f = c >> mq;
+                    if (f << mq == c) {
+                        return toChars(f, 0);
+                    }
+                }
+                return toDecimal(-mq, c);
             }
             if (t != 0) {
                 // subnormal value
@@ -262,7 +275,8 @@ final public class FloatToDecimal {
         Also check the appendix.
 
         Here's a correspondence between Java names and names in [1],
-        expressed as LaTeX source code and informally
+        expressed as approximate LaTeX source code and informally.
+        Other names are identical.
         cb:     \bar{c}     "c-bar"
         cbr:    \bar{c}_r   "c-bar-r"
         cbl:    \bar{c}_l   "c-bar-l"
@@ -271,7 +285,7 @@ final public class FloatToDecimal {
         vbr:    \bar{v}_r   "v-bar-r"
         vbl:    \bar{v}_l   "v-bar-l"
 
-        rpo:    r'_o        "r-prime-o"
+        rop:    r_o'        "r-o-prime"
          */
         int out = c & 0x1;
         long cb;
@@ -307,23 +321,26 @@ final public class FloatToDecimal {
         // g is as in the appendix
         long g = g1(-k) + 1;
 
-        int vb = rpo(g, cb << h);
-        int vbl = rpo(g, cbl << h);
-        int vbr = rpo(g, cbr << h);
+        int vb = rop(g, cb << h);
+        int vbl = rop(g, cbl << h);
+        int vbr = rop(g, cbr << h);
 
         int s = vb >> 2;
         if (s >= 100) {
             /*
             sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
-            This is the only place where a division (the %) is carried out.
+
+            The table in section 10 of [1] shows
+                s' =
+                floor(s / 10) = floor(s 1'717'986'919 / 2^34)
              */
-            int sp10 = s - s % 10;
+            int sp10 = 10 * (int) (s * 1_717_986_919L >>> 34);
             int tp10 = sp10 + 10;
 
             /*
             upin    iff    u' = sp10 10^k in Rv
             wpin    iff    w' = tp10 10^k in Rv
-            See result 15.
+            See section 9.3.
              */
             boolean upin = vbl + out <= sp10 << 2;
             boolean wpin = (tp10 << 2) + out <= vbr;
@@ -348,7 +365,7 @@ final public class FloatToDecimal {
         /*
         uin    iff    u = s 10^k in Rv
         win    iff    w = t 10^k in Rv
-        See result 15.
+        See section 9.3.
          */
         boolean uin = vbl + out <= s << 2;
         boolean win = (t << 2) + out <= vbr;
@@ -358,17 +375,14 @@ final public class FloatToDecimal {
         }
         /*
         Both u and w lie in Rv: determine the one closest to v.
-        See result 15.
+        See section 9.3.
          */
         int cmp = vb - (s + t << 1);
         return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
 
-    private static int rpo(long g, long cp) {
-        /*
-        For full details see reference [1].
-        See appendix and figure 7.
-         */
+    private static int rop(long g, long cp) {
+        // See appendix and figure 7 of [1].
         long x1 = multiplyHigh(g, cp);
         long vbp = x1 >> 31;
         return (int) (vbp | (x1 & MASK_31) + MASK_31 >>> 31);
@@ -379,7 +393,7 @@ final public class FloatToDecimal {
      */
     private String toChars(int f, int e) {
         /*
-        For details not discussed here see reference [3].
+        For details not discussed here see section 10 of [1].
 
         Determine len such that
             10^(len-1) <= f < 10^len
@@ -405,7 +419,7 @@ final public class FloatToDecimal {
             h = the most significant digit of f
             l = the last 8, least significant digits of f
 
-        To avoid divisions, it can be shown (see [3]) that
+        The table in section 10 of [1] shows
             floor(f / 10^8) = floor(1'441'151'881 f / 2^57)
          */
         int h = (int) (f * 1_441_151_881L >>> 57);
@@ -423,7 +437,8 @@ final public class FloatToDecimal {
     private String toChars1(int h, int l, int e) {
         /*
         0 < e <= 7: plain format without leading zeroes.
-        Left-to-right digits extraction: algorithm 1 in [4].
+        Left-to-right digits extraction:
+        algorithm 1 in [3], with b = 10, k = 8, n = 28.
          */
         appendDigit(h);
         int y = y(l);
@@ -468,7 +483,10 @@ final public class FloatToDecimal {
     }
 
     private void append8Digits(int m) {
-        // Left-to-right digits extraction: algorithm 1 in [4].
+        /*
+        Left-to-right digits extraction:
+        algorithm 1 in [3], with b = 10, k = 8, n = 28.
+         */
         int y = y(m);
         for (int i = 0; i < 8; ++i) {
             int t = 10 * y;
@@ -481,19 +499,24 @@ final public class FloatToDecimal {
         while (buf[index] == '0') {
             --index;
         }
+        // ... but do not remove the one directly to the right of '.'
         if (buf[index] == '.') {
             ++index;
         }
     }
 
-    /*
-    Computes floor((m + 1) 2^28 / 10^8) - 1 as in [3].
-    Needed by algorithm 1 in [4].
-     */
-    private int y(int m) {
+    private int y(int a) {
+        /*
+        Algorithm 1 in [3] needs computation of
+            floor((a + 1) 2^n / b^k) - 1
+        with a < 10^8, b = 10, k = 8, n = 28.
+        Noting that
+            (a + 1) 2^n <= 10^8 2^28 < 10^17
+        the table in section 10 of [1] leads to the code below.
+         */
         return (int) (multiplyHigh(
-                (long) (m + 1) << 28,
-                48_357_032_784_585_167L) >>> 18) - 1;
+                (long) (a + 1) << 28,
+                193_428_131_138_340_668L) >>> 20) - 1;
     }
 
     private void exponent(int e) {
@@ -507,10 +530,10 @@ final public class FloatToDecimal {
             return;
         }
         /*
-        It can be shown (see [3]) that
-            floor(e / 10) = floor(205 e / 2^11)
+        The table in section 10 of [1] shows
+            floor(e / 10) = floor(103 e / 2^10)
          */
-        int d = e * 205 >>> 11;
+        int d = e * 103 >>> 10;
         appendDigit(d);
         appendDigit(e - 10 * d);
     }
