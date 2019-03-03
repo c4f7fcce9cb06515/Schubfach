@@ -22,39 +22,100 @@
 
 package math;
 
+import java.math.BigDecimal;
 import java.util.Random;
 
 import static java.lang.Float.*;
+import static java.lang.Integer.numberOfTrailingZeros;
+import static math.FloatToDecimal.*;
+import static math.MathUtils.flog10pow2;
 
 /*
  * @test
  * @author Raffaello Giulietti
  */
-public class FloatToDecString {
+class FloatToDecimalChecker extends ToDecimalChecker {
 
-    private static final boolean FAILURE_THROWS_EXCEPTION = true;
+    private static final int RANDOM_COUNT = 1_000_000;
+    private static final boolean TEST_ALL = false;
 
-    private static void assertTrue(boolean ok, float v, String s) {
-        if (ok) {
-            return;
-        }
-        String message = "Float::toString applied to " +
-                "Float.intBitsToFloat(" +
-                "0x" + Integer.toHexString(floatToRawIntBits(v)) +
-                ")" +
-                " returns " +
-                "\"" + s + "\"" +
-                ", which is not correct according to the specification.";
-        if (FAILURE_THROWS_EXCEPTION) {
-            throw new RuntimeException(message);
-        }
-        System.err.println(message);
+    private float v;
+    private final int originalBits;
+
+    private FloatToDecimalChecker(float v, String s) {
+        super(s);
+        this.v = v;
+        originalBits = floatToRawIntBits(v);
+    }
+
+    @Override
+    BigDecimal toBigDecimal() {
+        return new BigDecimal(v);
+    }
+
+    @Override
+    boolean recovers(BigDecimal b) {
+        return b.floatValue() == v;
+    }
+
+    @Override
+    String hexBits() {
+        return String.format("0x%01X__%02X__%02X_%04X",
+                (originalBits >>> 31) & 0x1,
+                (originalBits >>> 23) & 0xFF,
+                (originalBits >>> 16) & 0x7F,
+                originalBits & 0xFFFF);
+    }
+
+    @Override
+    boolean recovers(String s) {
+        return Float.parseFloat(s) == v;
+    }
+
+    @Override
+    int minExp() {
+        return FloatToDecimal.MIN_EXP;
+    }
+
+    @Override
+    int maxExp() {
+        return FloatToDecimal.MAX_EXP;
+    }
+
+    @Override
+    int maxLen10() {
+        return 9;
+    }
+
+    @Override
+    boolean isZero() {
+        return v == 0;
+    }
+
+    @Override
+    boolean isInfinity() {
+        return v == Float.POSITIVE_INFINITY;
+    }
+
+    @Override
+    void negate() {
+        v = -v;
+    }
+
+    @Override
+    boolean isNegative() {
+        return originalBits < 0;
+    }
+
+    @Override
+    boolean isNaN() {
+        return Float.isNaN(v);
     }
 
     private static void toDec(float v) {
 //        String s = Float.toString(v);
         String s = FloatToDecimal.toString(v);
-        assertTrue(new FloatToStringChecker(v, s).isOK(), v, s);
+        new FloatToDecimalChecker(v, s).assertTrue();
     }
 
     /*
@@ -101,7 +162,7 @@ public class FloatToDecString {
     The rendering is either too long or it is not the closest decimal.
      */
     private static void testPowersOf10() {
-        for (int e = -44; e <= 39; ++e) {
+        for (int e = MIN_EXP; e <= MAX_EXP; ++e) {
             toDec(parseFloat("1e" + e));
         }
     }
@@ -111,17 +172,17 @@ public class FloatToDecString {
     The rendering is either too long or it is not the closest decimal.
      */
     private static void testPowersOf2() {
-        for (float v = MIN_VALUE; v <= MAX_VALUE; v *= 2.0) {
+        for (float v = MIN_VALUE; v <= MAX_VALUE; v *= 2) {
             toDec(v);
         }
     }
 
     /*
-    Tests all integers up to 1_000_000.
-    These are all exact floats.
+    Tests all positive integers below 2^23.
+    These are all exact floats and exercise the fast path.
      */
     private static void testInts() {
-        for (int i = 0; i <= 1_000_000; ++i) {
+        for (int i = 1; i < 1 << P - 1; ++i) {
             toDec(i);
         }
     }
@@ -131,7 +192,7 @@ public class FloatToDecString {
      */
     private static void testRandom() {
         Random r = new Random();
-        for (int i = 0; i < 1_000_000; ++i) {
+        for (int i = 0; i < RANDOM_COUNT; ++i) {
             toDec(intBitsToFloat(r.nextInt()));
         }
     }
@@ -140,6 +201,7 @@ public class FloatToDecString {
     All, really all, possible floats. Takes between 90 and 120 minutes.
      */
     private static void testAll() {
+        // Avoid wrapping around Integer.MAX_VALUE
         int bits = Integer.MIN_VALUE;
         for (; bits < Integer.MAX_VALUE; ++bits) {
             toDec(Float.intBitsToFloat(bits));
@@ -147,13 +209,32 @@ public class FloatToDecString {
         toDec(Float.intBitsToFloat(bits));
     }
 
+    private static void testConstants() {
+        assertTrue(precision() == P, "P");
+        assertTrue(flog10pow2(P) + 2 == H, "H");
+        assertTrue(e(MIN_VALUE) == MIN_EXP, "MIN_EXP");
+        assertTrue(e(MAX_VALUE) == MAX_EXP, "MAX_EXP");
+    }
+
+    private static int precision() {
+        /*
+        Given precision P, the floating point value 3 has the bits
+        0e...e10...0
+        where there are exactly P - 2 trailing zeroes.
+        */
+        return numberOfTrailingZeros(floatToRawIntBits(3)) + 2;
+    }
+
     public static void main(String[] args) {
-//        testAll();
+        testConstants();
         testExtremeValues();
         testPowersOf2();
         testPowersOf10();
         testInts();
         testRandom();
+        if (TEST_ALL) {
+            testAll();
+        }
     }
 
 }

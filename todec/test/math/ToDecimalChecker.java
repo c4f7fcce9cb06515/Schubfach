@@ -25,21 +25,64 @@ package math;
 import java.io.IOException;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 
 /*
 A checker for the Javadoc specification.
 It just relies on straightforward use of (expensive) BigDecimal arithmetic,
 not optimized at all.
  */
-abstract class StringChecker {
+abstract class ToDecimalChecker extends BasicChecker {
 
-    private String s;
+    // The string to check
+    private final String s;
+
+    // The decimal parsed from s is c 10^q
     private long c;
     private int q;
+
+    // The number of digits parsed from s: 10^(len10-1) <= c < 10^len10
     private int len10;
 
-    StringChecker(String s) {
+    ToDecimalChecker(String s) {
         this.s = s;
+    }
+
+    /*
+    Let e be such that 10^(e-1) <= c 2^q < 10^e.
+     */
+    static int e(double v) {
+        // log10(v) is a first good approximation of e
+        int e = (int) Math.floor(Math.log10(v)) + 1;
+
+        // Full precision search for e such that 10^(e-1) <= c 2^q < 10^e.
+        BigDecimal bv = new BigDecimal(v);
+        BigDecimal low = new BigDecimal(BigInteger.ONE, -(e - 1));
+        while (low.compareTo(bv) > 0) {
+            e -= 1;
+            low = new BigDecimal(BigInteger.ONE, -(e - 1));
+        }
+        BigDecimal high = new BigDecimal(BigInteger.ONE, -e);
+        while (bv.compareTo(high) >= 0) {
+            e += 1;
+            high = new BigDecimal(BigInteger.ONE, -e);
+        }
+        return e;
+    }
+
+    void assertTrue() {
+        if (isOK()) {
+            return;
+        }
+        String message = "toString applied to the bits " +
+                hexBits() +
+                " returns " +
+                "\"" + s + "\"" +
+                ", which is not correct according to the specification.";
+        if (BasicChecker.FAILURE_THROWS_EXCEPTION) {
+            throw new RuntimeException(message);
+        }
+        System.err.println(message);
     }
 
     /*
@@ -48,10 +91,10 @@ abstract class StringChecker {
     It is an unusually long method but rather straightforward, too.
     Many conditionals could be merged, but KISS here.
      */
-    private boolean parse() {
+    private boolean parse(String t) {
         try {
             // first determine interesting boundaries in the string
-            StringReader r = new StringReader(s);
+            StringReader r = new StringReader(t);
             int ch = r.read();
 
             int i = 0;
@@ -140,7 +183,7 @@ abstract class StringChecker {
             // z is just after digits ending the exponent
 
             // No other char after the number
-            if (z != s.length()) {
+            if (z != t.length()) {
                 return false;
             }
 
@@ -229,24 +272,25 @@ abstract class StringChecker {
         }
     }
 
-    boolean isOK() {
+    private boolean isOK() {
         if (isNaN()) {
             return s.equals("NaN");
         }
+        String t = s;
         if (isNegative()) {
             if (s.isEmpty() || s.charAt(0) != '-') {
                 return false;
             }
-            invert();
-            s = s.substring(1);
+            negate();
+            t = s.substring(1);
         }
         if (isInfinity()) {
-            return s.equals("Infinity");
+            return t.equals("Infinity");
         }
         if (isZero()) {
-            return s.equals("0.0");
+            return t.equals("0.0");
         }
-        if (!parse()) {
+        if (!parse(t)) {
             return false;
         }
         if (len10 < 2) {
@@ -265,7 +309,7 @@ abstract class StringChecker {
 
         // s must recover v
         try {
-            if (!recovers(s)) {
+            if (!recovers(t)) {
                 return false;
             }
         } catch (NumberFormatException e) {
@@ -334,9 +378,11 @@ abstract class StringChecker {
 
     abstract boolean recovers(String s);
 
-    abstract int maxExp();
+    abstract String hexBits();
 
     abstract int minExp();
+
+    abstract int maxExp();
 
     abstract int maxLen10();
 
@@ -344,7 +390,7 @@ abstract class StringChecker {
 
     abstract boolean isInfinity();
 
-    abstract void invert();
+    abstract void negate();
 
     abstract boolean isNegative();
 

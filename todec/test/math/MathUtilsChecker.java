@@ -26,21 +26,16 @@ import java.math.BigInteger;
 
 import static java.math.BigInteger.*;
 
+import static math.DoubleToDecimal.*;
 import static math.MathUtils.*;
 
 /*
  * @test
  * @author Raffaello Giulietti
  */
-public class MathUtilsChecks {
+public class MathUtilsChecker extends BasicChecker {
 
     private static final BigInteger THREE = BigInteger.valueOf(3);
-
-    private static void check(boolean claim) {
-        if (!claim) {
-            throw new RuntimeException();
-        }
-    }
 
     /*
     Let
@@ -58,13 +53,13 @@ public class MathUtilsChecks {
 
     Throws an exception iff the check fails.
      */
-    private static void checkPow10(int e, long g1, long g0) {
+    private static void testG(int e, long g1, long g0) {
         // 2^62 <= g1 < 2^63, 0 <= g0 < 2^63
-        check(g1 << 1 < 0 && g1 >= 0 && g0 >= 0);
+        assertTrue(g1 << 1 < 0 && g1 >= 0 && g0 >= 0, "g");
 
         BigInteger g = valueOf(g1).shiftLeft(63).or(valueOf(g0));
         // double check that 2^125 <= g < 2^126
-        check(g.signum() > 0 && g.bitLength() == 126);
+        assertTrue(g.signum() > 0 && g.bitLength() == 126, "g");
 
         // see javadoc of MathUtils.g1(int)
         int r = flog2pow10(e) - 125;
@@ -80,7 +75,9 @@ public class MathUtilsChecks {
             g - 1 = 10^e 2^(-r)
          */
         if (e >= 0 && r < 0) {
-            check(g.subtract(ONE).compareTo(TEN.pow(e).shiftLeft(-r)) == 0);
+            assertTrue(
+                    g.subtract(ONE).compareTo(TEN.pow(e).shiftLeft(-r)) == 0,
+                    "g");
             return;
         }
 
@@ -97,8 +94,8 @@ public class MathUtilsChecks {
             BigInteger pow5 = TEN.pow(-e);
             BigInteger mhs = ONE.shiftLeft(-r);
             BigInteger rhs = g.multiply(pow5);
-            check(rhs.subtract(pow5).compareTo(mhs) <= 0 &&
-                    mhs.compareTo(rhs) < 0);
+            assertTrue(rhs.subtract(pow5).compareTo(mhs) <= 0 &&
+                    mhs.compareTo(rhs) < 0, "g");
             return;
         }
 
@@ -112,8 +109,8 @@ public class MathUtilsChecks {
          */
         if (e >= 0) {
             BigInteger mhs = TEN.pow(e);
-            check(g.subtract(ONE).shiftLeft(r).compareTo(mhs) <= 0 &&
-                    mhs.compareTo(g.shiftLeft(r)) < 0);
+            assertTrue(g.subtract(ONE).shiftLeft(r).compareTo(mhs) <= 0 &&
+                    mhs.compareTo(g.shiftLeft(r)) < 0, "g");
             return;
         }
 
@@ -126,16 +123,16 @@ public class MathUtilsChecks {
             (g - 1) 2^r 10^(-e) <= 1
         which cannot hold, as the left-hand side is greater than 1.
          */
-        check(false);
+        assertTrue(false, "g");
     }
 
     /*
     Verifies the soundness of the values returned by
     g1() and g0().
      */
-    private static void testPow10Table() {
-        for (int e = MIN_EXP; e <= MAX_EXP; ++e) {
-            checkPow10(e, g1(e), g0(e));
+    private static void testG() {
+        for (int e = -MAX_K; e <= -MIN_K; ++e) {
+            testG(e, g1(e), g0(e));
         }
     }
 
@@ -161,7 +158,8 @@ public class MathUtilsChecks {
         /*
         First check the case e = 1
          */
-        check(flog10threeQuartersPow2(1) == 0);
+        assertTrue(flog10threeQuartersPow2(1) == 0,
+                "flog10threeQuartersPow2");
 
         /*
         Now check the range -2_000 <= e <= 0.
@@ -184,20 +182,21 @@ public class MathUtilsChecks {
          */
         int e = 0;
         int k0 = flog10threeQuartersPow2(e);
-        check(k0 < 0);
+        assertTrue(k0 < 0, "flog10threeQuartersPow2");
         BigInteger l = THREE.multiply(TEN.pow(-k0 - 1));
         BigInteger u = l.multiply(TEN);
         for (;;) {
-            check(l.bitLength() <= 2 - e && 2 - e < u.bitLength());
+            assertTrue(l.bitLength() <= 2 - e && 2 - e < u.bitLength(),
+                    "flog10threeQuartersPow2");
             if (e == -2_000) {
                 break;
             }
             --e;
             int kp = flog10threeQuartersPow2(e);
-            check(kp <= k0);
+            assertTrue(kp <= k0, "flog10threeQuartersPow2");
             if (kp < k0) {
                 // k changes at most by 1 at each iteration, hence:
-                check(k0 - kp == 1);
+                assertTrue(k0 - kp == 1, "flog10threeQuartersPow2");
                 k0 = kp;
                 l = u;
                 u = u.multiply(TEN);
@@ -225,22 +224,23 @@ public class MathUtilsChecks {
          */
         e = 2;
         k0 = flog10threeQuartersPow2(e);
-        check(k0 >= 0);
+        assertTrue(k0 >= 0, "flog10threeQuartersPow2");
         BigInteger l10 = TEN.pow(k0);
         BigInteger u10 = l10.multiply(TEN);
         l = l10.divide(THREE);
         u = u10.divide(THREE);
         for (;;) {
-            check(l.bitLength() <= e - 2 && e - 2 < u.bitLength());
+            assertTrue(l.bitLength() <= e - 2 && e - 2 < u.bitLength(),
+                    "flog10threeQuartersPow2");
             if (e == 2_000) {
                 break;
             }
             ++e;
             int kp = flog10threeQuartersPow2(e);
-            check(kp >= k0);
+            assertTrue(kp >= k0, "flog10threeQuartersPow2");
             if (kp > k0) {
                 // k changes at most by 1 at each iteration, hence:
-                check(kp - k0 == 1);
+                assertTrue(kp - k0 == 1, "flog10threeQuartersPow2");
                 k0 = kp;
                 u10 = u10.multiply(TEN);
                 l = u;
@@ -273,7 +273,7 @@ public class MathUtilsChecks {
         /*
         First check the case e = 0
          */
-        check(flog10pow2(0) == 0);
+        assertTrue(flog10pow2(0) == 0, "flog10pow2");
 
         /*
         Now check the range -2_000 <= e < 0.
@@ -296,20 +296,21 @@ public class MathUtilsChecks {
          */
         int e = -1;
         int k = flog10pow2(e);
-        check(k < 0);
+        assertTrue(k < 0, "flog10pow2");
         BigInteger l = TEN.pow(-k - 1);
         BigInteger u = l.multiply(TEN);
         for (;;) {
-            check(l.bitLength() <= -e && -e < u.bitLength());
+            assertTrue(l.bitLength() <= -e && -e < u.bitLength(),
+                    "flog10pow2");
             if (e == -2_000) {
                 break;
             }
             --e;
             int kp = flog10pow2(e);
-            check(kp <= k);
+            assertTrue(kp <= k, "flog10pow2");
             if (kp < k) {
                 // k changes at most by 1 at each iteration, hence:
-                check(k - kp == 1);
+                assertTrue(k - kp == 1, "flog10pow2");
                 k = kp;
                 l = u;
                 u = u.multiply(TEN);
@@ -331,20 +332,21 @@ public class MathUtilsChecks {
          */
         e = 1;
         k = flog10pow2(e);
-        check(k >= 0);
+        assertTrue(k >= 0, "flog10pow2");
         l = TEN.pow(k);
         u = l.multiply(TEN);
         for (;;) {
-            check(l.bitLength() <= e && e < u.bitLength());
+            assertTrue(l.bitLength() <= e && e < u.bitLength(),
+                    "flog10pow2");
             if (e == 2_000) {
                 break;
             }
             ++e;
             int kp = flog10pow2(e);
-            check(kp >= k);
+            assertTrue(kp >= k, "flog10pow2");
             if (kp > k) {
                 // k changes at most by 1 at each iteration, hence:
-                check(kp - k == 1);
+                assertTrue(kp - k == 1, "flog10pow2");
                 k = kp;
                 l = u;
                 u = u.multiply(TEN);
@@ -376,7 +378,7 @@ public class MathUtilsChecks {
         /*
         First check the case e = 0
          */
-        check(flog2pow10(0) == 0);
+        assertTrue(flog2pow10(0) == 0, "flog2pow10");
 
         /*
         Now check the range -500 <= e < 0.
@@ -390,10 +392,10 @@ public class MathUtilsChecks {
          */
         int e = -1;
         int k0 = flog2pow10(e);
-        check(k0 <= -4);
+        assertTrue(k0 <= -4, "flog2pow10");
         BigInteger l = TEN;
         for (;;) {
-            check(l.bitLength() == -k0);
+            assertTrue(l.bitLength() == -k0, "flog2pow10");
             if (e == -500) {
                 break;
             }
@@ -414,10 +416,10 @@ public class MathUtilsChecks {
          */
         e = 1;
         k0 = flog2pow10(e);
-        check(k0 >= 3);
+        assertTrue(k0 >= 3, "flog2pow10");
         l = TEN;
         for (;;) {
-            check(l.bitLength() == k0 + 1);
+            assertTrue(l.bitLength() == k0 + 1, "flog2pow10");
             if (e == 500) {
                 break;
             }
@@ -427,11 +429,29 @@ public class MathUtilsChecks {
         }
     }
 
+    private static void testConstants() {
+        int qMin = (-1 << Double.SIZE - P - 1) - P + 3;
+        assertTrue(flog10pow2(qMin) == MIN_K, "MIN_K");
+        int qMax = (1 << Double.SIZE - P - 1) - P;
+        assertTrue(flog10pow2(qMax) == MAX_K, "MAX_K");
+    }
+
+    private static void testPow10() {
+        int e = 0;
+        long pow = 1;
+        for (; e < pow10.length; e += 1, pow *= 10) {
+            assertTrue(pow == pow10[e], "pow10");
+        }
+        assertTrue(e == H + 1, "pow10.length");
+    }
+
     public static void main(String[] args) {
-        testPow10Table();
         testFlog10pow2();
         testFlog10threeQuartersPow2();
         testFlog2pow10();
+        testConstants();
+        testPow10();
+        testG();
     }
 
 }
