@@ -46,7 +46,7 @@ class DoubleToDecimalChecker extends ToDecimalChecker {
     private DoubleToDecimalChecker(double v, String s) {
         super(s);
         this.v = v;
-        originalBits = Double.doubleToRawLongBits(v);
+        originalBits = doubleToRawLongBits(v);
     }
 
     @Override
@@ -61,7 +61,7 @@ class DoubleToDecimalChecker extends ToDecimalChecker {
 
     @Override
     boolean recovers(String s) {
-        return Double.parseDouble(s) == v;
+        return parseDouble(s) == v;
     }
 
     @Override
@@ -77,17 +77,17 @@ class DoubleToDecimalChecker extends ToDecimalChecker {
 
     @Override
     int minExp() {
-        return DoubleToDecimal.MIN_EXP;
+        return MIN_EXP;
     }
 
     @Override
     int maxExp() {
-        return DoubleToDecimal.MAX_EXP;
+        return MAX_EXP;
     }
 
     @Override
     int maxLen10() {
-        return DoubleToDecimal.H;
+        return H;
     }
 
     @Override
@@ -97,7 +97,7 @@ class DoubleToDecimalChecker extends ToDecimalChecker {
 
     @Override
     boolean isInfinity() {
-        return v == Double.POSITIVE_INFINITY;
+        return v == POSITIVE_INFINITY;
     }
 
     @Override

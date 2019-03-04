@@ -49,10 +49,10 @@ abstract class ToDecimalChecker extends BasicChecker {
     }
 
     /*
-    Let e be such that 10^(e-1) <= c 2^q < 10^e.
+    Returns e be such that 10^(e-1) <= c 2^q < 10^e.
      */
     static int e(double v) {
-        // log10(v) is a first good approximation of e
+        // log10(v) + 1 is a first good approximation of e
         int e = (int) Math.floor(Math.log10(v)) + 1;
 
         // Full precision search for e such that 10^(e-1) <= c 2^q < 10^e.
@@ -79,7 +79,7 @@ abstract class ToDecimalChecker extends BasicChecker {
                 " returns " +
                 "\"" + s + "\"" +
                 ", which is not correct according to the specification.";
-        if (BasicChecker.FAILURE_THROWS_EXCEPTION) {
+        if (FAILURE_THROWS_EXCEPTION) {
             throw new RuntimeException(message);
         }
         System.err.println(message);
@@ -87,7 +87,7 @@ abstract class ToDecimalChecker extends BasicChecker {
 
     /*
     Returns whether s syntactically meets the expected output of
-    Double::toString. It is restricted to finite positive outputs.
+    toString. It is restricted to finite positive outputs.
     It is an unusually long method but rather straightforward, too.
     Many conditionals could be merged, but KISS here.
      */

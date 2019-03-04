@@ -48,7 +48,7 @@ public class MathUtilsChecker extends BasicChecker {
         0 <= g0 < 2^63,
         g - 1 <= beta < g,    (that is, g = floor(beta) + 1)
     The last predicate, after multiplying by 2^r, is equivalent to
-        (g - 1) 2^r < 10^e <= g 2^r
+        (g - 1) 2^r <= 10^e < g 2^r
     This is the predicate that will be checked in various forms.
 
     Throws an exception iff the check fails.
@@ -103,7 +103,7 @@ public class MathUtilsChecker extends BasicChecker {
         Finally, when
             e >= 0 & r >= 0
         the predicate
-            (g - 1) 2^r < 10^e <= g 2^r
+            (g - 1) 2^r <= 10^e < g 2^r
         can be used straightforwardly as all numerical subexpressions are
         already integer-valued.
          */
@@ -120,8 +120,8 @@ public class MathUtilsChecker extends BasicChecker {
         which, however, cannot arise. Indeed, the predicate
             (g - 1) 2^r <= 10^e < g 2^r
         implies
-            (g - 1) 2^r 10^(-e) <= 1
-        which cannot hold, as the left-hand side is greater than 1.
+            (g - 1) 10 <= (g - 1) 2^r 10^(-e) <= 1
+        which cannot hold.
          */
         assertTrue(false, "g");
     }
@@ -448,8 +448,8 @@ public class MathUtilsChecker extends BasicChecker {
         testFlog10pow2();
         testFlog10threeQuartersPow2();
         testFlog2pow10();
-        testConstants();
         testPow10();
+        testConstants();
         testG();
     }
 

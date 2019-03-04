@@ -69,22 +69,22 @@ class FloatToDecimalChecker extends ToDecimalChecker {
 
     @Override
     boolean recovers(String s) {
-        return Float.parseFloat(s) == v;
+        return parseFloat(s) == v;
     }
 
     @Override
     int minExp() {
-        return FloatToDecimal.MIN_EXP;
+        return MIN_EXP;
     }
 
     @Override
     int maxExp() {
-        return FloatToDecimal.MAX_EXP;
+        return MAX_EXP;
     }
 
     @Override
     int maxLen10() {
-        return 9;
+        return H;
     }
 
     @Override
@@ -94,7 +94,7 @@ class FloatToDecimalChecker extends ToDecimalChecker {
 
     @Override
     boolean isInfinity() {
-        return v == Float.POSITIVE_INFINITY;
+        return v == POSITIVE_INFINITY;
     }
 
     @Override
@@ -204,9 +204,9 @@ class FloatToDecimalChecker extends ToDecimalChecker {
         // Avoid wrapping around Integer.MAX_VALUE
         int bits = Integer.MIN_VALUE;
         for (; bits < Integer.MAX_VALUE; ++bits) {
-            toDec(Float.intBitsToFloat(bits));
+            toDec(intBitsToFloat(bits));
         }
-        toDec(Float.intBitsToFloat(bits));
+        toDec(intBitsToFloat(bits));
     }
 
     private static void testConstants() {
