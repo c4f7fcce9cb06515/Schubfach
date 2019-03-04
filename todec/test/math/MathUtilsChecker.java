@@ -127,8 +127,7 @@ public class MathUtilsChecker extends BasicChecker {
     }
 
     /*
-    Verifies the soundness of the values returned by
-    g1() and g0().
+    Verifies the soundness of the values returned by g1() and g0().
      */
     private static void testG() {
         for (int e = -MAX_K; e <= -MIN_K; ++e) {

@@ -33,6 +33,7 @@ import static math.MathUtils.flog10pow2;
 
 /*
  * @test
+ * @bug 8202555
  * @author Raffaello Giulietti
  */
 class DoubleToDecimalChecker extends ToDecimalChecker {
@@ -342,7 +343,7 @@ class DoubleToDecimalChecker extends ToDecimalChecker {
     private static void testRandomUnit() {
         Random r = new Random();
         for (int i = 0; i < RANDOM_COUNT; ++i) {
-            toDec(r.nextLong() & (1L << P - 1) - 1);
+            toDec(r.nextLong() & (1L << P - 1));
         }
     }
 
