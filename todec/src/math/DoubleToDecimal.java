@@ -571,8 +571,9 @@ final public class DoubleToDecimal {
     }
 
     /*
-    Using the deprecated, yet public constructor enhances performance.
+    Using the deprecated constructor enhances performance.
      */
+    @SuppressWarnings("deprecation")
     private String charsToString() {
         return new String(buf, 0, 0, index + 1);
     }
