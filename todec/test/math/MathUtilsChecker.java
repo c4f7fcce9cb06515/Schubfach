@@ -50,8 +50,6 @@ public class MathUtilsChecker extends BasicChecker {
     The last predicate, after multiplying by 2^r, is equivalent to
         (g - 1) 2^r <= 10^e < g 2^r
     This is the predicate that will be checked in various forms.
-
-    Throws an exception iff the check fails.
      */
     private static void testG(int e, long g1, long g0) {
         // 2^62 <= g1 < 2^63, 0 <= g0 < 2^63
@@ -438,10 +436,9 @@ public class MathUtilsChecker extends BasicChecker {
     private static void testPow10() {
         int e = 0;
         long pow = 1;
-        for (; e < pow10.length; e += 1, pow *= 10) {
-            assertTrue(pow == pow10[e], "pow10");
+        for (; e <= H; e += 1, pow *= 10) {
+            assertTrue(pow == pow10(e), "pow10");
         }
-        assertTrue(e == H + 1, "pow10.length");
     }
 
     public static void main(String[] args) {

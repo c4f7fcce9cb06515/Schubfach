@@ -74,15 +74,15 @@ abstract class ToDecimalChecker extends BasicChecker {
         if (isOK()) {
             return;
         }
-        String message = "toString applied to the bits " +
+        String msg = "toString applied to the bits " +
                 hexBits() +
                 " returns " +
                 "\"" + s + "\"" +
                 ", which is not correct according to the specification.";
         if (FAILURE_THROWS_EXCEPTION) {
-            throw new RuntimeException(message);
+            throw new RuntimeException(msg);
         }
-        System.err.println(message);
+        System.err.println(msg);
     }
 
     /*

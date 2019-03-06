@@ -36,7 +36,7 @@ import static math.MathUtils.flog10pow2;
  * @bug 8202555
  * @author Raffaello Giulietti
  */
-class DoubleToDecimalChecker extends ToDecimalChecker {
+public class DoubleToDecimalChecker extends ToDecimalChecker {
 
     private static final int RANDOM_COUNT = 1_000_000;
 

@@ -34,10 +34,9 @@ import static math.MathUtils.flog10pow2;
  * @test
  * @author Raffaello Giulietti
  */
-class FloatToDecimalChecker extends ToDecimalChecker {
+public class FloatToDecimalChecker extends ToDecimalChecker {
 
     private static final int RANDOM_COUNT = 1_000_000;
-    private static final boolean TEST_ALL = false;
 
     private float v;
     private final int originalBits;
@@ -198,11 +197,23 @@ class FloatToDecimalChecker extends ToDecimalChecker {
     }
 
     /*
-    All, really all, possible floats. Takes between 90 and 120 minutes.
+    All, really all, 2^32 possible floats. Takes between 90 and 120 minutes.
      */
     private static void testAll() {
         // Avoid wrapping around Integer.MAX_VALUE
         int bits = Integer.MIN_VALUE;
+        for (; bits < Integer.MAX_VALUE; ++bits) {
+            toDec(intBitsToFloat(bits));
+        }
+        toDec(intBitsToFloat(bits));
+    }
+
+    /*
+    All positive 2^31 floats.
+     */
+    private static void testPositive() {
+        // Avoid wrapping around Integer.MAX_VALUE
+        int bits = 0;
         for (; bits < Integer.MAX_VALUE; ++bits) {
             toDec(intBitsToFloat(bits));
         }
@@ -226,15 +237,20 @@ class FloatToDecimalChecker extends ToDecimalChecker {
     }
 
     public static void main(String[] args) {
+        if (args.length > 0 && args[0].equals("all")) {
+            testAll();
+            return;
+        }
+        if (args.length > 0 && args[0].equals("positive")) {
+            testPositive();
+            return;
+        }
         testConstants();
         testExtremeValues();
         testPowersOf2();
         testPowersOf10();
         testInts();
         testRandom();
-        if (TEST_ALL) {
-            testAll();
-        }
     }
 
 }

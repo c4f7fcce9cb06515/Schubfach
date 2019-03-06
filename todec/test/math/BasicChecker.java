@@ -8,10 +8,11 @@ class BasicChecker {
         if (ok) {
             return;
         }
+        String msg = valueName + " is not correct";
         if (FAILURE_THROWS_EXCEPTION) {
-            throw new RuntimeException(valueName);
+            throw new RuntimeException(msg);
         }
-        System.err.println(valueName + " is not correct");
+        System.err.println(msg);
     }
 
 }
