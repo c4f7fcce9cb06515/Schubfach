@@ -268,10 +268,8 @@ final public class DoubleToDecimal {
 
     private String toDecimal(int q, long c) {
         /*
-        For full details see reference [1].
-
-        The skeleton corresponds to figure 3, as discussed in section 8.1.
-        The efficient computations are those summarized in figure 6.
+        The skeleton corresponds to figure 4 of [1].
+        The efficient computations are those summarized in figure 7.
 
         Here's a correspondence between Java names and names in [1],
         expressed as approximate LaTeX source code and informally.
@@ -292,26 +290,21 @@ final public class DoubleToDecimal {
         long cbl;
         int k;
         int h;
+        /*
+        flog10pow2(e) = floor(log_10(2^e))
+        flog10threeQuartersPow2(e) = floor(log_10(3/4 2^e))
+        flog2pow10(e) = floor(log_2(10^e))
+         */
         if (c != C_MIN | q == Q_MIN) {
             // regular spacing
             cb = c << 1;
             cbr = cb + 1;
-
-            /*
-            k = floor(log_10(2^q))
-            h = q + floor(log_2(10^(-k))) + 3
-             */
             k = flog10pow2(q);
             h = q + flog2pow10(-k) + 3;
         } else {
             // irregular spacing
             cb = c << 2;
             cbr = cb + 2;
-
-            /*
-            k = floor(log_10(3/4 2^q))
-            h = q + floor(log_2(10^(-k))) + 2
-             */
             k = flog10threeQuartersPow2(q);
             h = q + flog2pow10(-k) + 2;
         }
@@ -328,21 +321,18 @@ final public class DoubleToDecimal {
         long s = vb >> 2;
         if (s >= 100) {
             /*
-            sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
-
-            The table in section 10 of [1] shows
+            For n = 17, m = 1 the table in section 10 of [1] shows
                 s' =
                 floor(s / 10) = floor(s 115'292'150'460'684'698 / 2^60) =
                 floor(s 115'292'150'460'684'698 2^4 / 2^64)
-             */
-            long sp10 = 10 * multiplyHigh(s, 115_292_150_460_684_698L << 4);
-            long tp10 = sp10 + 10;
 
-            /*
+            sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
             upin    iff    u' = sp10 10^k in Rv
             wpin    iff    w' = tp10 10^k in Rv
             See section 9.3.
              */
+            long sp10 = 10 * multiplyHigh(s, 115_292_150_460_684_698L << 4);
+            long tp10 = sp10 + 10;
             boolean upin = vbl + out <= sp10 << 2;
             boolean wpin = (tp10 << 2) + out <= vbr;
             if (upin != wpin) {
@@ -357,14 +347,13 @@ final public class DoubleToDecimal {
             }
         }
 
-        // 10 <= s < 100    or    s >= 100  and  u', w' not in Rv
-        long t = s + 1;
-
         /*
+        10 <= s < 100    or    s >= 100  and  u', w' not in Rv
         uin    iff    u = s 10^k in Rv
         win    iff    w = t 10^k in Rv
         See section 9.3.
          */
+        long t = s + 1;
         boolean uin = vbl + out <= s << 2;
         boolean win = (t << 2) + out <= vbr;
         if (uin != win) {
@@ -379,8 +368,11 @@ final public class DoubleToDecimal {
         return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
 
+    /*
+    Computes rop(cp g 2^(-127)), where g = g1 2^63 + g0
+    See section 9.9 and figure 6 of [1].
+     */
     private static long rop(long g1, long g0, long cp) {
-        // See section 9.9 and figure 5 of [1].
         long x1 = multiplyHigh(g0, cp);
         long y0 = g1 * cp;
         long y1 = multiplyHigh(g1, cp);
@@ -400,7 +392,7 @@ final public class DoubleToDecimal {
             10^(len-1) <= f < 10^len
          */
         int len = flog10pow2(Long.SIZE - numberOfLeadingZeros(f));
-        if (f >= pow10[len]) {
+        if (f >= pow10(len)) {
             len += 1;
         }
 
@@ -410,7 +402,7 @@ final public class DoubleToDecimal {
             10^(H-1) <= f < 10^H
             fp 10^ep = f 10^(e-H) = 0.f 10^e
          */
-        f *= pow10[H - len];
+        f *= pow10(H - len);
         e += len;
 
         /*
@@ -421,10 +413,10 @@ final public class DoubleToDecimal {
             m = the next 8 most significant digits of f
             l = the last 8, least significant digits of f
 
-        The table in section 10 of [1] shows
+        For n = 17, m = 8 the table in section 10 of [1] shows
             floor(f / 10^8) = floor(193'428'131'138'340'668 f / 2^84) =
             floor(floor(193'428'131'138'340'668 f / 2^64) / 2^20)
-        and
+        and for n = 9, m = 8
             floor(hm / 10^8) = floor(1'441'151'881 hm / 2^57)
          */
         long hm = multiplyHigh(f, 193_428_131_138_340_668L) >>> 20;
@@ -526,7 +518,7 @@ final public class DoubleToDecimal {
         with a < 10^8, b = 10, k = 8, n = 28.
         Noting that
             (a + 1) 2^n <= 10^8 2^28 < 10^17
-        the table in section 10 of [1] leads to the code below.
+        For n = 17, m = 8 the table in section 10 of [1] leads to:
          */
         return (int) (multiplyHigh(
                 (long) (a + 1) << 28,
@@ -543,20 +535,20 @@ final public class DoubleToDecimal {
             appendDigit(e);
             return;
         }
-        /*
-        The table in section 10 of [1] shows
-            floor(e / 10) = floor(103 e / 2^10)
-            floor(e / 100) = floor(1'311 e / 2^17)
-         */
-        if (e < 100) {
-            int d = e * 103 >>> 10;
+        int d;
+        if (e >= 100) {
+            /*
+            For n = 3, m = 2 the table in section 10 of [1] shows
+                floor(e / 100) = floor(1'311 e / 2^17)
+             */
+            d = e * 1_311 >>> 17;
             appendDigit(d);
-            appendDigit(e - 10 * d);
-            return;
+            e -= 100 * d;
         }
-        int d = e * 1_311 >>> 17;
-        appendDigit(d);
-        e -= 100 * d;
+        /*
+        For n = 2, m = 1 the table in section 10 of [1] shows
+            floor(e / 10) = floor(103 e / 2^10)
+         */
         d = e * 103 >>> 10;
         appendDigit(d);
         appendDigit(e - 10 * d);

@@ -23,9 +23,8 @@
 package math;
 
 /**
- * This class exposes package private utilities for other classes.
- *
- * All methods are assumed to be invoked with correct arguments, so they are
+ * This class exposes package private utilities for other classes. Thus,
+ * all methods are assumed to be invoked with correct arguments, so they are
  * not checked at all.
  *
  * @author Raffaello Giulietti
@@ -54,8 +53,7 @@ final class MathUtils {
     private MathUtils() {
     }
 
-    // pow10[e] = 10^e, 0 <= e <= DoubleToDecimal.H
-    static final long[] pow10 = {
+    private static final long[] pow10 = {
         1L,
         10L,
         100L,
@@ -75,6 +73,17 @@ final class MathUtils {
         10_000_000_000_000_000L,
         100_000_000_000_000_000L,
     };
+
+    /**
+     * Returns 10<sup>{@code e}</sup>.
+     *
+     * @param e The exponent which must meet
+     *          0 &le; {@code e} &le; {@link DoubleToDecimal#H}.
+     * @return 10<sup>{@code e}</sup>.
+     */
+    static long pow10(int e) {
+        return pow10[e];
+    }
 
     /**
      * Returns the unique integer <i>k</i> such that

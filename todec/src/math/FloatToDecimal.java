@@ -76,7 +76,7 @@ final public class FloatToDecimal {
     private static final int T_MASK = (1 << P - 1) - 1;
 
     // Used in rop().
-    private static final long MASK_31 = (1L << 31) - 1;
+    private static final long MASK_32 = (1L << 32) - 1;
 
     // Used for left-to-tight digit extraction.
     private static final int MASK_28 = (1 << 28) - 1;
@@ -268,10 +268,8 @@ final public class FloatToDecimal {
 
     private String toDecimal(int q, int c) {
         /*
-        For full details see reference [1].
-
-        The skeleton corresponds to figure 3, as discussed in section 8.1.
-        The efficient computations are those summarized in figure 6.
+        The skeleton corresponds to figure 4 of [1].
+        The efficient computations are those summarized in figure 7.
         Also check the appendix.
 
         Here's a correspondence between Java names and names in [1],
@@ -293,26 +291,21 @@ final public class FloatToDecimal {
         long cbl;
         int k;
         int h;
+        /*
+        flog10pow2(e) = floor(log_10(2^e))
+        flog10threeQuartersPow2(e) = floor(log_10(3/4 2^e))
+        flog2pow10(e) = floor(log_2(10^e))
+         */
         if (c != C_MIN | q == Q_MIN) {
             // regular spacing
             cb = c << 1;
             cbr = cb + 1;
-
-            /*
-            k = floor(log_10(2^q))
-            h = q + floor(log_2(10^(-k))) + 34
-             */
             k = flog10pow2(q);
             h = q + flog2pow10(-k) + 34;
         } else {
             // irregular spacing
             cb = c << 2;
             cbr = cb + 2;
-
-            /*
-            k = floor(log_10(3/4 2^q))
-            h = q + floor(log_2(10^(-k))) + 33
-             */
             k = flog10threeQuartersPow2(q);
             h = q + flog2pow10(-k) + 33;
         }
@@ -328,20 +321,17 @@ final public class FloatToDecimal {
         int s = vb >> 2;
         if (s >= 100) {
             /*
-            sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
-
-            The table in section 10 of [1] shows
+            For n = 9, m = 1 the table in section 10 of [1] shows
                 s' =
                 floor(s / 10) = floor(s 1'717'986'919 / 2^34)
-             */
-            int sp10 = 10 * (int) (s * 1_717_986_919L >>> 34);
-            int tp10 = sp10 + 10;
 
-            /*
+            sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
             upin    iff    u' = sp10 10^k in Rv
             wpin    iff    w' = tp10 10^k in Rv
             See section 9.3.
              */
+            int sp10 = 10 * (int) (s * 1_717_986_919L >>> 34);
+            int tp10 = sp10 + 10;
             boolean upin = vbl + out <= sp10 << 2;
             boolean wpin = (tp10 << 2) + out <= vbr;
             if (upin != wpin) {
@@ -359,14 +349,13 @@ final public class FloatToDecimal {
             }
         }
 
-        // 10 <= s < 100    or    s >= 100  and  u', w' not in Rv
-        int t = s + 1;
-
         /*
+        10 <= s < 100    or    s >= 100  and  u', w' not in Rv
         uin    iff    u = s 10^k in Rv
         win    iff    w = t 10^k in Rv
         See section 9.3.
          */
+        int t = s + 1;
         boolean uin = vbl + out <= s << 2;
         boolean win = (t << 2) + out <= vbr;
         if (uin != win) {
@@ -381,11 +370,14 @@ final public class FloatToDecimal {
         return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
     }
 
+    /*
+    Computes rop(cp g 2^(-95))
+    See appendix and figure 9 of [1].
+     */
     private static int rop(long g, long cp) {
-        // See appendix and figure 7 of [1].
         long x1 = multiplyHigh(g, cp);
-        long vbp = x1 >> 31;
-        return (int) (vbp | (x1 & MASK_31) + MASK_31 >>> 31);
+        long vbp = x1 >>> 31;
+        return (int) (vbp | (x1 & MASK_32) + MASK_32 >>> 32);
     }
 
     /*
@@ -399,7 +391,7 @@ final public class FloatToDecimal {
             10^(len-1) <= f < 10^len
          */
         int len = flog10pow2(Integer.SIZE - numberOfLeadingZeros(f));
-        if (f >= pow10[len]) {
+        if (f >= pow10(len)) {
             len += 1;
         }
 
@@ -409,7 +401,7 @@ final public class FloatToDecimal {
             10^(H-1) <= f < 10^H
             fp 10^ep = f 10^(e-H) = 0.f 10^e
          */
-        f *= pow10[H - len];
+        f *= pow10(H - len);
         e += len;
 
         /*
@@ -419,7 +411,7 @@ final public class FloatToDecimal {
             h = the most significant digit of f
             l = the last 8, least significant digits of f
 
-        The table in section 10 of [1] shows
+        For n = 9, m = 8 the table in section 10 of [1] shows
             floor(f / 10^8) = floor(1'441'151'881 f / 2^57)
          */
         int h = (int) (f * 1_441_151_881L >>> 57);
@@ -512,7 +504,7 @@ final public class FloatToDecimal {
         with a < 10^8, b = 10, k = 8, n = 28.
         Noting that
             (a + 1) 2^n <= 10^8 2^28 < 10^17
-        the table in section 10 of [1] leads to the code below.
+        For n = 17, m = 8 the table in section 10 of [1] leads to:
          */
         return (int) (multiplyHigh(
                 (long) (a + 1) << 28,
@@ -530,7 +522,7 @@ final public class FloatToDecimal {
             return;
         }
         /*
-        The table in section 10 of [1] shows
+        For n = 2, m = 1 the table in section 10 of [1] shows
             floor(e / 10) = floor(103 e / 2^10)
          */
         int d = e * 103 >>> 10;
