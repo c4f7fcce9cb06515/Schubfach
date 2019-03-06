@@ -27,6 +27,7 @@ import java.util.Random;
 
 import static java.lang.Float.*;
 import static java.lang.Integer.numberOfTrailingZeros;
+import static java.lang.Math.scalb;
 import static math.FloatToDecimal.*;
 import static math.MathUtils.flog10pow2;
 
@@ -157,7 +158,7 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
     }
 
     /*
-    Many "powers of 10" are incorrectly rendered by the JDK.
+    Some "powers of 10" are incorrectly rendered by the JDK.
     The rendering is either too long or it is not the closest decimal.
      */
     private static void testPowersOf10() {
@@ -173,6 +174,95 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
     private static void testPowersOf2() {
         for (float v = MIN_VALUE; v <= MAX_VALUE; v *= 2) {
             toDec(v);
+        }
+    }
+
+    /*
+    There are tons of doubles that are rendered incorrectly by the JDK.
+    While the renderings correctly round back to the original value,
+    they are longer than needed or are not the closest decimal to the double.
+    Here are just a very few examples.
+     */
+    private static final String[] Anomalies = {
+            // JDK renders these longer than needed.
+            "1.1754944E-38", "2.2E-44",
+            "1.0E16", "2.0E16", "3.0E16", "5.0E16", "3.0E17",
+            "3.2E18", "3.7E18", "3.7E16", "3.72E17",
+
+            // JDK does not render this as the closest.
+            "9.9E-44",
+    };
+
+    private static void testSomeAnomalies() {
+        for (String dec : Anomalies) {
+            toDec(parseFloat(dec));
+        }
+    }
+
+    /*
+    Values are from
+    Paxson V, "A Program for Testing IEEE Decimal-Binary Conversion"
+    tables 16 and 17
+     */
+    private static final float[] PaxsonSignificands = {
+            12_676_506,
+            15_445_013,
+            13_734_123,
+            12_428_269,
+            12_676_506,
+            15_334_037,
+            11_518_287,
+            12_584_953,
+            15_961_084,
+            14_915_817,
+            10_845_484,
+            16_431_059,
+
+            16_093_626,
+             9_983_778,
+            12_745_034,
+            12_706_553,
+            11_005_028,
+            15_059_547,
+            16_015_691,
+             8_667_859,
+            14_855_922,
+            14_855_922,
+            10_144_164,
+            13_248_074,
+    };
+
+    private static final int[] PaxsonExponents = {
+            -102,
+            -103,
+              86,
+            -138,
+            -130,
+            -146,
+             -41,
+            -145,
+            -125,
+            -146,
+            -102,
+             -61,
+
+              69,
+              25,
+             104,
+              72,
+              45,
+              71,
+             -99,
+              56,
+             -82,
+             -83,
+            -110,
+              95,
+    };
+
+    private static void testPaxson() {
+        for (int i = 0; i < PaxsonSignificands.length; ++i) {
+            toDec(scalb(PaxsonSignificands[i], PaxsonExponents[i]));
         }
     }
 
@@ -247,8 +337,10 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
         }
         testConstants();
         testExtremeValues();
+        testSomeAnomalies();
         testPowersOf2();
         testPowersOf10();
+        testPaxson();
         testInts();
         testRandom();
     }
