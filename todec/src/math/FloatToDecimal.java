@@ -328,7 +328,7 @@ final public class FloatToDecimal {
                 // normal value. Here mq = -q
                 int mq = -Q_MIN + 1 - bq;
                 int c = C_MIN | t;
-                // The fast path discussed in section 8.3 of [1].
+                // The fast path discussed in section 8.2 of [1].
                 if (0 < mq & mq < P) {
                     int f = c >> mq;
                     if (f << mq == c) {

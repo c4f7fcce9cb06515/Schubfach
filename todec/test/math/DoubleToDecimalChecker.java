@@ -32,8 +32,6 @@ import static math.MathUtils.flog10pow2;
 
 public class DoubleToDecimalChecker extends ToDecimalChecker {
 
-    private static final int RANDOM_COUNT = 1_000_000;
-
     private static final int P =
             numberOfTrailingZeros(doubleToRawLongBits(3)) + 2;
     private static final int W = (SIZE - 1) - (P - 1);
@@ -346,9 +344,8 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
     /*
     Random doubles over the whole range
      */
-    private static void testRandom() {
-        Random r = new Random();
-        for (int i = 0; i < RANDOM_COUNT; ++i) {
+    private static void testRandom(int randomCount, Random r) {
+        for (int i = 0; i < randomCount; ++i) {
             toDec(longBitsToDouble(r.nextLong()));
         }
     }
@@ -357,9 +354,8 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
     Random doubles over the integer range [0, 2^52).
     These are all exact doubles and exercise the fast path (except 0).
      */
-    private static void testRandomUnit() {
-        Random r = new Random();
-        for (int i = 0; i < RANDOM_COUNT; ++i) {
+    private static void testRandomUnit(int randomCount, Random r) {
+        for (int i = 0; i < randomCount; ++i) {
             toDec(r.nextLong() & (1L << P - 1));
         }
     }
@@ -367,9 +363,8 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
     /*
     Random doubles over the range [0, 10^15) as "multiples" of 1e-3
      */
-    private static void testRandomMilli() {
-        Random r = new Random();
-        for (int i = 0; i < RANDOM_COUNT; ++i) {
+    private static void testRandomMilli(int randomCount, Random r) {
+        for (int i = 0; i < randomCount; ++i) {
             toDec(r.nextLong() % 1_000_000_000_000_000_000L / 1e3);
         }
     }
@@ -377,9 +372,8 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
     /*
     Random doubles over the range [0, 10^15) as "multiples" of 1e-6
      */
-    private static void testRandomMicro() {
-        Random r = new Random();
-        for (int i = 0; i < RANDOM_COUNT; ++i) {
+    private static void testRandomMicro(int randomCount, Random r) {
+        for (int i = 0; i < randomCount; ++i) {
             toDec((r.nextLong() & 0x7FFF_FFFF_FFFF_FFFFL) / 1e6);
         }
     }
@@ -404,7 +398,7 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
         assertTrue(C_TINY == DoubleToDecimal.C_TINY, "C_TINY");
     }
 
-    public static void main(String[] args) {
+    public static void test(int randomCount, Random r) {
         testConstants();
         testExtremeValues();
         testSomeAnomalies();
@@ -413,10 +407,13 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
         testPaxson();
         testInts();
         testLongs();
-        testRandom();
-        testRandomUnit();
-        testRandomMilli();
-        testRandomMicro();
+        testRandom(randomCount, r);
+        testRandomUnit(randomCount, r);
+        testRandomMilli(randomCount, r);
+        testRandomMicro(randomCount, r);
     }
 
+    public static void main(String[] args) {
+        test(1_000_000, new Random());
+    }
 }

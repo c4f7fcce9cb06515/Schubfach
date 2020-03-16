@@ -291,9 +291,8 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
     /*
     Random floats over the whole range.
      */
-    private static void testRandom() {
-        Random r = new Random();
-        for (int i = 0; i < RANDOM_COUNT; ++i) {
+    private static void testRandom(int randomCount, Random r) {
+        for (int i = 0; i < randomCount; ++i) {
             toDec(intBitsToFloat(r.nextInt()));
         }
     }
@@ -301,7 +300,7 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
     /*
     All, really all, 2^32 possible floats. Takes between 90 and 120 minutes.
      */
-    private static void testAll() {
+    public static void testAll() {
         // Avoid wrapping around Integer.MAX_VALUE
         int bits = Integer.MIN_VALUE;
         for (; bits < Integer.MAX_VALUE; ++bits) {
@@ -313,7 +312,7 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
     /*
     All positive 2^31 floats.
      */
-    private static void testPositive() {
+    public static void testPositive() {
         // Avoid wrapping around Integer.MAX_VALUE
         int bits = 0;
         for (; bits < Integer.MAX_VALUE; ++bits) {
@@ -342,6 +341,17 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
         assertTrue(C_TINY == FloatToDecimal.C_TINY, "C_TINY");
     }
 
+    public static void test(int randomCount, Random r) {
+        testConstants();
+        testExtremeValues();
+        testSomeAnomalies();
+        testPowersOf2();
+        testPowersOf10();
+        testPaxson();
+        testInts();
+        testRandom(randomCount, r);
+    }
+
     public static void main(String[] args) {
         if (args.length > 0 && args[0].equals("all")) {
             testAll();
@@ -351,14 +361,7 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
             testPositive();
             return;
         }
-        testConstants();
-        testExtremeValues();
-        testSomeAnomalies();
-        testPowersOf2();
-        testPowersOf10();
-        testPaxson();
-        testInts();
-        testRandom();
+        test(1_000_000, new Random());
     }
 
 }

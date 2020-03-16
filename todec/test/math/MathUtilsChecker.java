@@ -454,7 +454,7 @@ public class MathUtilsChecker extends BasicChecker {
         }
     }
 
-    public static void main(String[] args) {
+    public static void test() {
         testBinaryConstants();
         testFlog10pow2();
         testFlog10threeQuartersPow2();
@@ -462,6 +462,10 @@ public class MathUtilsChecker extends BasicChecker {
         testFlog2pow10();
         testPow10();
         testG();
+    }
+
+    public static void main(String[] args) {
+        test();
     }
 
 }
