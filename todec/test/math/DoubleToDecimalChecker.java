@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 Raffaello Giulietti
+ * Copyright 2018-2020 Raffaello Giulietti
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,18 +27,33 @@ import java.util.Random;
 
 import static java.lang.Double.*;
 import static java.lang.Long.numberOfTrailingZeros;
-import static java.lang.Math.scalb;
-import static math.DoubleToDecimal.*;
+import static java.lang.StrictMath.scalb;
 import static math.MathUtils.flog10pow2;
 
-/*
- * @test
- * @bug 8202555
- * @author Raffaello Giulietti
- */
 public class DoubleToDecimalChecker extends ToDecimalChecker {
 
     private static final int RANDOM_COUNT = 1_000_000;
+
+    private static final int P =
+            numberOfTrailingZeros(doubleToRawLongBits(3)) + 2;
+    private static final int W = (SIZE - 1) - (P - 1);
+    private static final int Q_MIN = (-1 << W - 1) - P + 3;
+    private static final int Q_MAX = (1 << W - 1) - P;
+    private static final long C_MIN = 1L << P - 1;
+    private static final long C_MAX = (1L << P) - 1;
+
+    private static final int K_MIN = flog10pow2(Q_MIN);
+    private static final int K_MAX = flog10pow2(Q_MAX);
+    private static final int H = flog10pow2(P) + 2;
+
+    private static final double MIN_VALUE = scalb(1.0, Q_MIN);
+    private static final double MIN_NORMAL = scalb((double) C_MIN, Q_MIN);
+    private static final double MAX_VALUE = scalb((double) C_MAX, Q_MAX);
+
+    private static final int E_MIN = e(MIN_VALUE);
+    private static final int E_MAX = e(MAX_VALUE);
+
+    private static final long C_TINY = cTiny(Q_MIN, K_MIN);
 
     private double v;
     private final long originalBits;
@@ -77,12 +92,12 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
 
     @Override
     int minExp() {
-        return MIN_EXP;
+        return E_MIN;
     }
 
     @Override
     int maxExp() {
-        return MAX_EXP;
+        return E_MAX;
     }
 
     @Override
@@ -148,8 +163,9 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
         /*
         All values treated specially by Schubfach
          */
-        toDec(4.9E-324);
-        toDec(9.9E-324);
+        for (int c = 1; c < C_TINY; ++c) {
+            toDec(c * MIN_VALUE);
+        }
     }
 
     /*
@@ -157,7 +173,7 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
     The rendering is either too long or it is not the closest decimal.
      */
     private static void testPowersOf10() {
-        for (int e = MIN_EXP; e <= MAX_EXP; ++e) {
+        for (int e = E_MIN; e <= E_MAX; ++e) {
             toDec(parseDouble("1e" + e));
         }
     }
@@ -369,19 +385,23 @@ public class DoubleToDecimalChecker extends ToDecimalChecker {
     }
 
     private static void testConstants() {
-        assertTrue(precision() == P, "P");
-        assertTrue(flog10pow2(P) + 2 == H, "H");
-        assertTrue(e(MIN_VALUE) == MIN_EXP, "MIN_EXP");
-        assertTrue(e(MAX_VALUE) == MAX_EXP, "MAX_EXP");
-    }
+        assertTrue(P == DoubleToDecimal.P, "P");
+        assertTrue((long) (double) C_MIN == C_MIN, "C_MIN");
+        assertTrue((long) (double) C_MAX == C_MAX, "C_MAX");
+        assertTrue(MIN_VALUE == Double.MIN_VALUE, "MIN_VALUE");
+        assertTrue(MIN_NORMAL == Double.MIN_NORMAL, "MIN_NORMAL");
+        assertTrue(MAX_VALUE == Double.MAX_VALUE, "MAX_VALUE");
 
-    private static int precision() {
-        /*
-        Given precision P, the floating point value 3 has the bits
-        0e...e10...0
-        where there are exactly P - 2 trailing zeroes.
-        */
-        return numberOfTrailingZeros(doubleToRawLongBits(3)) + 2;
+        assertTrue(Q_MIN == DoubleToDecimal.Q_MIN, "Q_MIN");
+        assertTrue(Q_MAX == DoubleToDecimal.Q_MAX, "Q_MAX");
+
+        assertTrue(K_MIN == DoubleToDecimal.K_MIN, "K_MIN");
+        assertTrue(K_MAX == DoubleToDecimal.K_MAX, "K_MAX");
+        assertTrue(H == DoubleToDecimal.H, "H");
+
+        assertTrue(E_MIN == DoubleToDecimal.E_MIN, "E_MIN");
+        assertTrue(E_MAX == DoubleToDecimal.E_MAX, "E_MAX");
+        assertTrue(C_TINY == DoubleToDecimal.C_TINY, "C_TINY");
     }
 
     public static void main(String[] args) {

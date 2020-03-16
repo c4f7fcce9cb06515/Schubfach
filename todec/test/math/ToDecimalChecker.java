@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 Raffaello Giulietti
+ * Copyright 2018-2020 Raffaello Giulietti
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,8 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import static java.math.BigInteger.*;
+
 /*
 A checker for the Javadoc specification.
 It just relies on straightforward use of (expensive) BigDecimal arithmetic,
@@ -49,25 +51,33 @@ abstract class ToDecimalChecker extends BasicChecker {
     }
 
     /*
-    Returns e be such that 10^(e-1) <= c 2^q < 10^e.
+    Returns e be such that 10^(e-1) <= v < 10^e.
      */
     static int e(double v) {
         // log10(v) + 1 is a first good approximation of e
         int e = (int) Math.floor(Math.log10(v)) + 1;
 
         // Full precision search for e such that 10^(e-1) <= c 2^q < 10^e.
-        BigDecimal bv = new BigDecimal(v);
+        BigDecimal vp = new BigDecimal(v);
         BigDecimal low = new BigDecimal(BigInteger.ONE, -(e - 1));
-        while (low.compareTo(bv) > 0) {
+        while (low.compareTo(vp) > 0) {
             e -= 1;
             low = new BigDecimal(BigInteger.ONE, -(e - 1));
         }
         BigDecimal high = new BigDecimal(BigInteger.ONE, -e);
-        while (bv.compareTo(high) >= 0) {
+        while (vp.compareTo(high) >= 0) {
             e += 1;
             high = new BigDecimal(BigInteger.ONE, -e);
         }
         return e;
+    }
+
+    static long cTiny(int qMin, int kMin) {
+        BigInteger[] qr = ONE.shiftLeft(-qMin)
+                .divideAndRemainder(TEN.pow(-(kMin + 1)));
+        BigInteger cTiny = qr[1].signum() > 0 ? qr[0].add(ONE) : qr[0];
+        assertTrue(cTiny.bitLength() < Long.SIZE, "C_TINY");
+        return cTiny.longValue();
     }
 
     void assertTrue() {

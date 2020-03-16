@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 Raffaello Giulietti
+ * Copyright 2018-2020 Raffaello Giulietti
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,17 +27,33 @@ import java.util.Random;
 
 import static java.lang.Float.*;
 import static java.lang.Integer.numberOfTrailingZeros;
-import static java.lang.Math.scalb;
-import static math.FloatToDecimal.*;
+import static java.lang.StrictMath.scalb;
 import static math.MathUtils.flog10pow2;
 
-/*
- * @test
- * @author Raffaello Giulietti
- */
 public class FloatToDecimalChecker extends ToDecimalChecker {
 
     private static final int RANDOM_COUNT = 1_000_000;
+
+    private static final int P =
+            numberOfTrailingZeros(floatToRawIntBits(3)) + 2;
+    private static final int W = (SIZE - 1) - (P - 1);
+    private static final int Q_MIN = (-1 << W - 1) - P + 3;
+    private static final int Q_MAX = (1 << W - 1) - P;
+    private static final int C_MIN = 1 << P - 1;
+    private static final int C_MAX = (1 << P) - 1;
+
+    private static final int K_MIN = flog10pow2(Q_MIN);
+    private static final int K_MAX = flog10pow2(Q_MAX);
+    private static final int H = flog10pow2(P) + 2;
+
+    private static final float MIN_VALUE = scalb(1.0f, Q_MIN);
+    private static final float MIN_NORMAL = scalb((float) C_MIN, Q_MIN);
+    private static final float MAX_VALUE = scalb((float) C_MAX, Q_MAX);
+
+    private static final int E_MIN = e(MIN_VALUE);
+    private static final int E_MAX = e(MAX_VALUE);
+
+    private static final long C_TINY = cTiny(Q_MIN, K_MIN);
 
     private float v;
     private final int originalBits;
@@ -74,12 +90,12 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
 
     @Override
     int minExp() {
-        return MIN_EXP;
+        return E_MIN;
     }
 
     @Override
     int maxExp() {
-        return MAX_EXP;
+        return E_MAX;
     }
 
     @Override
@@ -148,13 +164,9 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
         /*
         All values treated specially by Schubfach
          */
-        toDec(1.4E-45F);
-        toDec(2.8E-45F);
-        toDec(4.2E-45F);
-        toDec(5.6E-45F);
-        toDec(7.0E-45F);
-        toDec(8.4E-45F);
-        toDec(9.8E-45F);
+        for (int c = 1; c < C_TINY; ++c) {
+            toDec(c * MIN_VALUE);
+        }
     }
 
     /*
@@ -162,7 +174,7 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
     The rendering is either too long or it is not the closest decimal.
      */
     private static void testPowersOf10() {
-        for (int e = MIN_EXP; e <= MAX_EXP; ++e) {
+        for (int e = E_MIN; e <= E_MAX; ++e) {
             toDec(parseFloat("1e" + e));
         }
     }
@@ -311,19 +323,23 @@ public class FloatToDecimalChecker extends ToDecimalChecker {
     }
 
     private static void testConstants() {
-        assertTrue(precision() == P, "P");
-        assertTrue(flog10pow2(P) + 2 == H, "H");
-        assertTrue(e(MIN_VALUE) == MIN_EXP, "MIN_EXP");
-        assertTrue(e(MAX_VALUE) == MAX_EXP, "MAX_EXP");
-    }
+        assertTrue(P == FloatToDecimal.P, "P");
+        assertTrue((long) (float) C_MIN == C_MIN, "C_MIN");
+        assertTrue((long) (float) C_MAX == C_MAX, "C_MAX");
+        assertTrue(MIN_VALUE == Float.MIN_VALUE, "MIN_VALUE");
+        assertTrue(MIN_NORMAL == Float.MIN_NORMAL, "MIN_NORMAL");
+        assertTrue(MAX_VALUE == Float.MAX_VALUE, "MAX_VALUE");
 
-    private static int precision() {
-        /*
-        Given precision P, the floating point value 3 has the bits
-        0e...e10...0
-        where there are exactly P - 2 trailing zeroes.
-        */
-        return numberOfTrailingZeros(floatToRawIntBits(3)) + 2;
+        assertTrue(Q_MIN == FloatToDecimal.Q_MIN, "Q_MIN");
+        assertTrue(Q_MAX == FloatToDecimal.Q_MAX, "Q_MAX");
+
+        assertTrue(K_MIN == FloatToDecimal.K_MIN, "K_MIN");
+        assertTrue(K_MAX == FloatToDecimal.K_MAX, "K_MAX");
+        assertTrue(H == FloatToDecimal.H, "H");
+
+        assertTrue(E_MIN == FloatToDecimal.E_MIN, "E_MIN");
+        assertTrue(E_MAX == FloatToDecimal.E_MAX, "E_MAX");
+        assertTrue(C_TINY == FloatToDecimal.C_TINY, "C_TINY");
     }
 
     public static void main(String[] args) {

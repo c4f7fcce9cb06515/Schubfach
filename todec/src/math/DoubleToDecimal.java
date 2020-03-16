@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 Raffaello Giulietti
+ * Copyright 2018-2020 Raffaello Giulietti
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,8 @@
 
 package math;
 
+import java.io.IOException;
+
 import static java.lang.Double.*;
 import static java.lang.Long.*;
 import static java.lang.Math.multiplyHigh;
@@ -43,28 +45,38 @@ final public class DoubleToDecimal {
 
     [3] Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
 
-    Divisions are avoided for the benefit of those architectures that do not
-    provide specific machine instructions or where they are slow.
+    Divisions are avoided altogether for the benefit of those architectures
+    that do not provide specific machine instructions or where they are slow.
     This is discussed in section 10 of [1].
      */
 
     // The precision in bits.
     static final int P = 53;
 
-    // H is as in section 8 of [1].
-    static final int H = 17;
-
-    // 10^(MIN_EXP - 1) <= MIN_VALUE < 10^MIN_EXP
-    static final int MIN_EXP = -323;
-
-    // 10^(MAX_EXP - 1) <= MAX_VALUE < 10^MAX_EXP
-    static final int MAX_EXP = 309;
-
     // Exponent width in bits.
     private static final int W = (Double.SIZE - 1) - (P - 1);
 
     // Minimum value of the exponent: -(2^(W-1)) - P + 3.
-    private static final int Q_MIN = (-1 << W - 1) - P + 3;
+    static final int Q_MIN = (-1 << W - 1) - P + 3;
+
+    // Maximum value of the exponent: 2^(W-1) - P.
+    static final int Q_MAX = (1 << W - 1) - P;
+
+    // 10^(E_MIN - 1) <= MIN_VALUE < 10^E_MIN
+    static final int E_MIN = -323;
+
+    // 10^(E_MAX - 1) <= MAX_VALUE < 10^E_MAX
+    static final int E_MAX = 309;
+
+    // Threshold to detect tiny values, as in section 8.1.1 of [1]
+    static final long C_TINY = 3;
+
+    // The minimum and maximum k, as in definition 5 of [1]
+    static final int K_MIN = -324;
+    static final int K_MAX = 292;
+
+    // H is as in section 8 of [1].
+    static final int H = 17;
 
     // Minimum value of the significand of a normal value: 2^(P-1).
     private static final long C_MIN = 1L << P - 1;
@@ -81,6 +93,13 @@ final public class DoubleToDecimal {
     // Used for left-to-tight digit extraction.
     private static final int MASK_28 = (1 << 28) - 1;
 
+    private static final int NON_SPECIAL = 0;
+    private static final int PLUS_ZERO = 1;
+    private static final int MINUS_ZERO = 2;
+    private static final int PLUS_INF = 3;
+    private static final int MINUS_INF = 4;
+    private static final int NAN = 5;
+
     // For thread-safety, each thread gets its own instance of this class.
     private static final ThreadLocal<DoubleToDecimal> threadLocal =
             ThreadLocal.withInitial(DoubleToDecimal::new);
@@ -92,9 +111,9 @@ final public class DoubleToDecimal {
         -d.ddddddddddddddddE-eee    H + 7 characters
     where there are H digits d
      */
-    private final byte[] buf = new byte[H + 7];
+    private final byte[] bytes = new byte[H + 7];
 
-    // Index into buf of rightmost valid character.
+    // Index into bytes of rightmost valid character.
     private int index;
 
     private DoubleToDecimal() {
@@ -214,19 +233,57 @@ final public class DoubleToDecimal {
      * @return a string rendering of the argument.
      */
     public static String toString(double v) {
-        return threadLocalInstance().toDecimal(v);
+        return threadLocalInstance().toDecimalString(v);
+    }
+
+    public static void appendTo(double v, Appendable appendable)
+            throws IOException {
+        threadLocalInstance().appendDecimalTo(v, appendable);
     }
 
     private static DoubleToDecimal threadLocalInstance() {
         return threadLocal.get();
     }
 
-    private String toDecimal(double v) {
+    private String toDecimalString(double v) {
+        switch (toDecimal(v)) {
+            case NON_SPECIAL: return charsToString();
+            case PLUS_ZERO: return "0.0";
+            case MINUS_ZERO: return "-0.0";
+            case PLUS_INF: return "Infinity";
+            case MINUS_INF: return "-Infinity";
+            default: return "NaN";
+        }
+    }
+
+    private void appendDecimalTo(double v, Appendable appendable)
+            throws IOException {
+        switch (toDecimal(v)) {
+            case NON_SPECIAL: {
+                for (int i = 0; i <= index; i += 1) {
+                    appendable.append((char) bytes[i]);
+                }
+            }
+            case PLUS_ZERO: appendable.append("0.0");
+            case MINUS_ZERO: appendable.append("-0.0");
+            case PLUS_INF: appendable.append("Infinity");
+            case MINUS_INF: appendable.append("-Infinity");
+            case NAN: appendable.append("NaN");
+        }
+    }
+
+    /*
+    Returns
+        PLUS_ZERO       iff v is 0.0
+        MINUS_ZERO      iff v is -0.0
+        PLUS_INF        iff v is POSITIVE_INFINITY
+        MINUS_INF       iff v is NEGATIVE_INFINITY
+        NAN             iff v is NaN
+     */
+    private int toDecimal(double v) {
         /*
         For full details see references [2] and [1].
 
-        Let
-            Q_MAX = 2^(W-1) - P
         For finite v != 0, determine integers c and q such that
             |v| = c 2^q    and
             Q_MIN <= q <= Q_MAX    and
@@ -252,21 +309,23 @@ final public class DoubleToDecimal {
                         return toChars(f, 0);
                     }
                 }
-                return toDecimal(-mq, c);
+                return toDecimal(-mq, c, 0);
             }
             if (t != 0) {
                 // subnormal value
-                return toDecimal(Q_MIN, t);
+                return t < C_TINY
+                       ? toDecimal(Q_MIN, 10 * t, -1)
+                       : toDecimal(Q_MIN, t, 0);
             }
-            return bits == 0 ? "0.0" : "-0.0";
+            return bits == 0 ? PLUS_ZERO : MINUS_ZERO;
         }
         if (t != 0) {
-            return "NaN";
+            return NAN;
         }
-        return bits > 0 ? "Infinity" : "-Infinity";
+        return bits > 0 ? PLUS_INF : MINUS_INF;
     }
 
-    private String toDecimal(int q, long c) {
+    private int toDecimal(int q, long c, int dk) {
         /*
         The skeleton corresponds to figure 4 of [1].
         The efficient computations are those summarized in figure 7.
@@ -285,11 +344,10 @@ final public class DoubleToDecimal {
         rop:    r_o'        "r-o-prime"
          */
         int out = (int) c & 0x1;
-        long cb;
-        long cbr;
+        long cb = c << 2;
+        long cbr = cb + 2;
         long cbl;
         int k;
-        int h;
         /*
         flog10pow2(e) = floor(log_10(2^e))
         flog10threeQuartersPow2(e) = floor(log_10(3/4 2^e))
@@ -297,22 +355,18 @@ final public class DoubleToDecimal {
          */
         if (c != C_MIN | q == Q_MIN) {
             // regular spacing
-            cb = c << 1;
-            cbr = cb + 1;
+            cbl = cb - 2;
             k = flog10pow2(q);
-            h = q + flog2pow10(-k) + 3;
         } else {
             // irregular spacing
-            cb = c << 2;
-            cbr = cb + 2;
+            cbl = cb - 1;
             k = flog10threeQuartersPow2(q);
-            h = q + flog2pow10(-k) + 2;
         }
-        cbl = cb - 1;
+        int h = q + flog2pow10(-k) + 2;
 
         // g1 and g0 are as in section 9.8.3, so g = g1 2^63 + g0
-        long g1 = g1(-k);
-        long g0 = g0(-k);
+        long g1 = g1(k);
+        long g0 = g0(k);
 
         long vb = rop(g1, g0, cb << h);
         long vbl = rop(g1, g0, cbl << h);
@@ -322,11 +376,11 @@ final public class DoubleToDecimal {
         if (s >= 100) {
             /*
             For n = 17, m = 1 the table in section 10 of [1] shows
-                s' =
-                floor(s / 10) = floor(s 115'292'150'460'684'698 / 2^60) =
-                floor(s 115'292'150'460'684'698 2^4 / 2^64)
+                s' = floor(s / 10) = floor(s 115_292_150_460_684_698 / 2^60)
+                   = floor(s 115_292_150_460_684_698 2^4 / 2^64)
 
-            sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
+            sp10 = 10 s'
+            tp10 = 10 t'
             upin    iff    u' = sp10 10^k in Rv
             wpin    iff    w' = tp10 10^k in Rv
             See section 9.3.
@@ -337,13 +391,6 @@ final public class DoubleToDecimal {
             boolean wpin = (tp10 << 2) + out <= vbr;
             if (upin != wpin) {
                 return toChars(upin ? sp10 : tp10, k);
-            }
-        } else if (s < 10) {
-            switch ((int) s) {
-                case 4:
-                    return toChars(49, -325); // 4.9 10^(-324)
-                case 9:
-                    return toChars(99, -325); // 9.9 10^(-324)
             }
         }
 
@@ -358,14 +405,14 @@ final public class DoubleToDecimal {
         boolean win = (t << 2) + out <= vbr;
         if (uin != win) {
             // Exactly one of u or w lies in Rv.
-            return toChars(uin ? s : t, k);
+            return toChars(uin ? s : t, k + dk);
         }
         /*
         Both u and w lie in Rv: determine the one closest to v.
         See section 9.3.
          */
         long cmp = vb - (s + t << 1);
-        return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
+        return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k + dk);
     }
 
     /*
@@ -384,7 +431,7 @@ final public class DoubleToDecimal {
     /*
     Formats the decimal f 10^e.
      */
-    private String toChars(long f, int e) {
+    private int toChars(long f, int e) {
         /*
         For details not discussed here see section 10 of [1].
 
@@ -414,10 +461,10 @@ final public class DoubleToDecimal {
             l = the last 8, least significant digits of f
 
         For n = 17, m = 8 the table in section 10 of [1] shows
-            floor(f / 10^8) = floor(193'428'131'138'340'668 f / 2^84) =
-            floor(floor(193'428'131'138'340'668 f / 2^64) / 2^20)
+            floor(f / 10^8) = floor(193_428_131_138_340_668 f / 2^84) =
+            floor(floor(193_428_131_138_340_668 f / 2^64) / 2^20)
         and for n = 9, m = 8
-            floor(hm / 10^8) = floor(1'441'151'881 hm / 2^57)
+            floor(hm / 10^8) = floor(1_441_151_881 hm / 2^57)
          */
         long hm = multiplyHigh(f, 193_428_131_138_340_668L) >>> 20;
         int l = (int) (f - 100_000_000L * hm);
@@ -433,7 +480,7 @@ final public class DoubleToDecimal {
         return toChars3(h, m, l, e);
     }
 
-    private String toChars1(int h, int m, int l, int e) {
+    private int toChars1(int h, int m, int l, int e) {
         /*
         0 < e <= 7: plain format without leading zeroes.
         Left-to-right digits extraction:
@@ -455,10 +502,10 @@ final public class DoubleToDecimal {
             y = t & MASK_28;
         }
         lowDigits(l);
-        return charsToString();
+        return NON_SPECIAL;
     }
 
-    private String toChars2(int h, int m, int l, int e) {
+    private int toChars2(int h, int m, int l, int e) {
         // -3 < e <= 0: plain format with leading zeroes.
         appendDigit(0);
         append('.');
@@ -468,17 +515,17 @@ final public class DoubleToDecimal {
         appendDigit(h);
         append8Digits(m);
         lowDigits(l);
-        return charsToString();
+        return NON_SPECIAL;
     }
 
-    private String toChars3(int h, int m, int l, int e) {
+    private int toChars3(int h, int m, int l, int e) {
         // -3 >= e | e > 7: computerized scientific notation
         appendDigit(h);
         append('.');
         append8Digits(m);
         lowDigits(l);
         exponent(e - 1);
-        return charsToString();
+        return NON_SPECIAL;
     }
 
     private void lowDigits(int l) {
@@ -502,11 +549,11 @@ final public class DoubleToDecimal {
     }
 
     private void removeTrailingZeroes() {
-        while (buf[index] == '0') {
+        while (bytes[index] == '0') {
             --index;
         }
         // ... but do not remove the one directly to the right of '.'
-        if (buf[index] == '.') {
+        if (bytes[index] == '.') {
             ++index;
         }
     }
@@ -539,7 +586,7 @@ final public class DoubleToDecimal {
         if (e >= 100) {
             /*
             For n = 3, m = 2 the table in section 10 of [1] shows
-                floor(e / 100) = floor(1'311 e / 2^17)
+                floor(e / 100) = floor(1_311 e / 2^17)
              */
             d = e * 1_311 >>> 17;
             appendDigit(d);
@@ -555,11 +602,11 @@ final public class DoubleToDecimal {
     }
 
     private void append(int c) {
-        buf[++index] = (byte) c;
+        bytes[++index] = (byte) c;
     }
 
     private void appendDigit(int d) {
-        buf[++index] = (byte) ('0' + d);
+        bytes[++index] = (byte) ('0' + d);
     }
 
     /*
@@ -567,7 +614,7 @@ final public class DoubleToDecimal {
      */
     @SuppressWarnings("deprecation")
     private String charsToString() {
-        return new String(buf, 0, 0, index + 1);
+        return new String(bytes, 0, 0, index + 1);
     }
 
 }

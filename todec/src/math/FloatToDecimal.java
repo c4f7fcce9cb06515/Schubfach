@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 Raffaello Giulietti
+ * Copyright 2018-2020 Raffaello Giulietti
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,8 @@
  */
 
 package math;
+
+import java.io.IOException;
 
 import static java.lang.Float.*;
 import static java.lang.Integer.*;
@@ -51,20 +53,30 @@ final public class FloatToDecimal {
     // The precision in bits.
     static final int P = 24;
 
-    // H is as in section 8 of [1].
-    static final int H = 9;
-
-    // 10^(MIN_EXP - 1) <= MIN_VALUE < 10^MIN_EXP
-    static final int MIN_EXP = -44;
-
-    // 10^(MAX_EXP - 1) <= MAX_VALUE < 10^MAX_EXP
-    static final int MAX_EXP = 39;
-
     // Exponent width in bits.
     private static final int W = (Float.SIZE - 1) - (P - 1);
 
     // Minimum value of the exponent: -(2^(W-1)) - P + 3.
-    private static final int Q_MIN = (-1 << W - 1) - P + 3;
+    static final int Q_MIN = (-1 << W - 1) - P + 3;
+
+    // Maximum value of the exponent: 2^(W-1) - P.
+    static final int Q_MAX = (1 << W - 1) - P;
+
+    // 10^(E_MIN - 1) <= MIN_VALUE < 10^E_MIN
+    static final int E_MIN = -44;
+
+    // 10^(E_MAX - 1) <= MAX_VALUE < 10^E_MAX
+    static final int E_MAX = 39;
+
+    // Threshold to detect tiny values, as in section 8.1.1 of [1]
+    static final int C_TINY = 8;
+
+    // The minimum and maximum k, as in definition 5 of [1]
+    static final int K_MIN = -45;
+    static final int K_MAX = 31;
+
+    // H is as in section 8 of [1].
+    static final int H = 9;
 
     // Minimum value of the significand of a normal value: 2^(P-1).
     private static final int C_MIN = 1 << P - 1;
@@ -80,6 +92,13 @@ final public class FloatToDecimal {
 
     // Used for left-to-tight digit extraction.
     private static final int MASK_28 = (1 << 28) - 1;
+
+    private static final int NON_SPECIAL = 0;
+    private static final int PLUS_ZERO = 1;
+    private static final int MINUS_ZERO = 2;
+    private static final int PLUS_INF = 3;
+    private static final int MINUS_INF = 4;
+    private static final int NAN = 5;
 
     // For thread-safety, each thread gets its own instance of this class.
     private static final ThreadLocal<FloatToDecimal> threadLocal =
@@ -214,14 +233,54 @@ final public class FloatToDecimal {
      * @return a string rendering of the argument.
      */
     public static String toString(float v) {
-        return threadLocalInstance().toDecimal(v);
+        return threadLocalInstance().toDecimalString(v);
+    }
+
+    public static void appendTo(float v, Appendable appendable)
+            throws IOException {
+        threadLocalInstance().appendDecimalTo(v, appendable);
     }
 
     private static FloatToDecimal threadLocalInstance() {
         return threadLocal.get();
     }
 
-    private String toDecimal(float v) {
+    private String toDecimalString(float v) {
+        switch (toDecimal(v)) {
+            case NON_SPECIAL: return charsToString();
+            case PLUS_ZERO: return "0.0";
+            case MINUS_ZERO: return "-0.0";
+            case PLUS_INF: return "Infinity";
+            case MINUS_INF: return "-Infinity";
+            default: return "NaN";
+        }
+    }
+
+    private void appendDecimalTo(float v, Appendable appendable)
+            throws IOException {
+        switch (toDecimal(v)) {
+            case NON_SPECIAL: {
+                for (int i = 0; i <= index; i += 1) {
+                    appendable.append((char) buf[i]);
+                }
+            }
+            case PLUS_ZERO: appendable.append("0.0");
+            case MINUS_ZERO: appendable.append("-0.0");
+            case PLUS_INF: appendable.append("Infinity");
+            case MINUS_INF: appendable.append("-Infinity");
+            case NAN: appendable.append("NaN");
+        }
+    }
+
+    /*
+    Returns
+        PLUS_ZERO       iff v is 0.0
+        MINUS_ZERO      iff v is -0.0
+        PLUS_INF        iff v is POSITIVE_INFINITY
+        MINUS_INF       iff v is NEGATIVE_INFINITY
+        NAN             iff v is NaN
+     */
+    private int toDecimal(float v) {
         /*
         For full details see references [2] and [1].
 
@@ -252,21 +311,23 @@ final public class FloatToDecimal {
                         return toChars(f, 0);
                     }
                 }
-                return toDecimal(-mq, c);
+                return toDecimal(-mq, c, 0);
             }
             if (t != 0) {
                 // subnormal value
-                return toDecimal(Q_MIN, t);
+                return t < C_TINY
+                       ? toDecimal(Q_MIN, 10 * t, -1)
+                       : toDecimal(Q_MIN, t, 0);
             }
-            return bits == 0 ? "0.0" : "-0.0";
+            return bits == 0 ? PLUS_ZERO : MINUS_ZERO;
         }
         if (t != 0) {
-            return "NaN";
+            return NAN;
         }
-        return bits > 0 ? "Infinity" : "-Infinity";
+        return bits > 0 ? PLUS_INF : MINUS_INF;
     }
 
-    private String toDecimal(int q, int c) {
+    private int toDecimal(int q, int c, int dk) {
         /*
         The skeleton corresponds to figure 4 of [1].
         The efficient computations are those summarized in figure 7.
@@ -286,11 +347,10 @@ final public class FloatToDecimal {
         rop:    r_o'        "r-o-prime"
          */
         int out = c & 0x1;
-        long cb;
-        long cbr;
+        long cb = c << 2;
+        long cbr = cb + 2;
         long cbl;
         int k;
-        int h;
         /*
         flog10pow2(e) = floor(log_10(2^e))
         flog10threeQuartersPow2(e) = floor(log_10(3/4 2^e))
@@ -298,21 +358,17 @@ final public class FloatToDecimal {
          */
         if (c != C_MIN | q == Q_MIN) {
             // regular spacing
-            cb = c << 1;
-            cbr = cb + 1;
+            cbl = cb - 2;
             k = flog10pow2(q);
-            h = q + flog2pow10(-k) + 34;
         } else {
-            // irregular spacing
-            cb = c << 2;
-            cbr = cb + 2;
+            // irregular spacing0
+            cbl = cb - 1;
             k = flog10threeQuartersPow2(q);
-            h = q + flog2pow10(-k) + 33;
         }
-        cbl = cb - 1;
+        int h = q + flog2pow10(-k) + 33;
 
         // g is as in the appendix
-        long g = g1(-k) + 1;
+        long g = g1(k) + 1;
 
         int vb = rop(g, cb << h);
         int vbl = rop(g, cbl << h);
@@ -337,16 +393,6 @@ final public class FloatToDecimal {
             if (upin != wpin) {
                 return toChars(upin ? sp10 : tp10, k);
             }
-        } else if (s < 10) {
-            switch (s) {
-                case 1: return toChars(14, -46); // 1.4 * 10^-45
-                case 2: return toChars(28, -46); // 2.8 * 10^-45
-                case 4: return toChars(42, -46); // 4.2 * 10^-45
-                case 5: return toChars(56, -46); // 5.6 * 10^-45
-                case 7: return toChars(70, -46); // 7.0 * 10^-45
-                case 8: return toChars(84, -46); // 8.4 * 10^-45
-                case 9: return toChars(98, -46); // 9.8 * 10^-45
-            }
         }
 
         /*
@@ -360,14 +406,14 @@ final public class FloatToDecimal {
         boolean win = (t << 2) + out <= vbr;
         if (uin != win) {
             // Exactly one of u or w lies in Rv.
-            return toChars(uin ? s : t, k);
+            return toChars(uin ? s : t, k + dk);
         }
         /*
         Both u and w lie in Rv: determine the one closest to v.
         See section 9.3.
          */
         int cmp = vb - (s + t << 1);
-        return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k);
+        return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k + dk);
     }
 
     /*
@@ -383,7 +429,7 @@ final public class FloatToDecimal {
     /*
     Formats the decimal f 10^e.
      */
-    private String toChars(int f, int e) {
+    private int toChars(int f, int e) {
         /*
         For details not discussed here see section 10 of [1].
 
@@ -426,7 +472,7 @@ final public class FloatToDecimal {
         return toChars3(h, l, e);
     }
 
-    private String toChars1(int h, int l, int e) {
+    private int toChars1(int h, int l, int e) {
         /*
         0 < e <= 7: plain format without leading zeroes.
         Left-to-right digits extraction:
@@ -448,10 +494,10 @@ final public class FloatToDecimal {
             y = t & MASK_28;
         }
         removeTrailingZeroes();
-        return charsToString();
+        return NON_SPECIAL;
     }
 
-    private String toChars2(int h, int l, int e) {
+    private int toChars2(int h, int l, int e) {
         // -3 < e <= 0: plain format with leading zeroes.
         appendDigit(0);
         append('.');
@@ -461,17 +507,17 @@ final public class FloatToDecimal {
         appendDigit(h);
         append8Digits(l);
         removeTrailingZeroes();
-        return charsToString();
+        return NON_SPECIAL;
     }
 
-    private String toChars3(int h, int l, int e) {
+    private int toChars3(int h, int l, int e) {
         // -3 >= e | e > 7: computerized scientific notation
         appendDigit(h);
         append('.');
         append8Digits(l);
         removeTrailingZeroes();
         exponent(e - 1);
-        return charsToString();
+        return NON_SPECIAL;
     }
 
     private void append8Digits(int m) {
