@@ -39,14 +39,14 @@ final public class FloatToDecimal {
     For full details about this code see the following references:
 
     [1] Giulietti, "The Schubfach way to render doubles",
-        https://drive.google.com/open?id=1KLtG_LaIbK9ETXI290zqCxvBW94dj058
+        https://drive.google.com/open?id=1luHhyQF9zKlM8yJ1nebU0OgVYhfC6CBN
 
     [2] IEEE Computer Society, "IEEE Standard for Floating-Point Arithmetic"
 
     [3] Bouvier & Zimmermann, "Division-Free Binary-to-Decimal Conversion"
 
-    Divisions are avoided for the benefit of those architectures that do not
-    provide specific machine instructions or where they are slow.
+    Divisions are avoided altogether for the benefit of those architectures
+    that do not provide specific machine instructions or where they are slow.
     This is discussed in section 10 of [1].
      */
 
@@ -71,7 +71,7 @@ final public class FloatToDecimal {
     // Threshold to detect tiny values, as in section 8.1.1 of [1]
     static final int C_TINY = 8;
 
-    // The minimum and maximum k, as in definition 5 of [1]
+    // The minimum and maximum k, as in section 8 of [1]
     static final int K_MIN = -45;
     static final int K_MAX = 31;
 
@@ -111,7 +111,13 @@ final public class FloatToDecimal {
         -d.ddddddddE-ee     H + 6 characters
     where there are H digits d
      */
-    private final byte[] buf = new byte[H + 6];
+    public final int MAX_CHARS = H + 6;
+
+    // Numerical results are created here...
+    private final byte[] bytes = new byte[MAX_CHARS];
+
+    // ... and copied here in appendTo()
+    private final char[] chars = new char[MAX_CHARS];
 
     // Index into buf of rightmost valid character.
     private int index;
@@ -236,9 +242,20 @@ final public class FloatToDecimal {
         return threadLocalInstance().toDecimalString(v);
     }
 
-    public static void appendTo(float v, Appendable appendable)
+    /**
+     * Appends the rendering of the {@code v} to {@code app}.
+     *
+     * <p>The outcome is the same as if {@code v} were first
+     * {@link #toString(float) rendered} and the resulting string were then
+     * {@link Appendable#append(CharSequence) appended} to {@code app}.
+     *
+     * @param v the {@code float} whose rendering is appended.
+     * @param app the {@link Appendable} to append to.
+     * @throws IOException If an I/O error occurs
+     */
+    public static Appendable appendTo(float v, Appendable app)
             throws IOException {
-        threadLocalInstance().appendDecimalTo(v, appendable);
+        return threadLocalInstance().appendDecimalTo(v, app);
     }
 
     private static FloatToDecimal threadLocalInstance() {
@@ -256,19 +273,28 @@ final public class FloatToDecimal {
         }
     }
 
-    private void appendDecimalTo(float v, Appendable appendable)
+    private Appendable appendDecimalTo(float v, Appendable app)
             throws IOException {
         switch (toDecimal(v)) {
-            case NON_SPECIAL: {
-                for (int i = 0; i <= index; i += 1) {
-                    appendable.append((char) buf[i]);
+            case NON_SPECIAL:
+                for (int i = 0; i <= index; ++i) {
+                    chars[i] = (char) bytes[i];
                 }
-            }
-            case PLUS_ZERO: appendable.append("0.0");
-            case MINUS_ZERO: appendable.append("-0.0");
-            case PLUS_INF: appendable.append("Infinity");
-            case MINUS_INF: appendable.append("-Infinity");
-            case NAN: appendable.append("NaN");
+                if (app instanceof StringBuilder) {
+                    return ((StringBuilder) app).append(chars, 0, index + 1);
+                }
+                if (app instanceof StringBuffer) {
+                    return ((StringBuffer) app).append(chars, 0, index + 1);
+                }
+                for (int i = 0; i <= index; ++i) {
+                    app.append(chars[i]);
+                }
+                return app;
+            case PLUS_ZERO: return app.append("0.0");
+            case MINUS_ZERO: return app.append("-0.0");
+            case PLUS_INF: return app.append("Infinity");
+            case MINUS_INF: return app.append("-Infinity");
+            default: return app.append("NaN");
         }
     }
 
@@ -284,8 +310,6 @@ final public class FloatToDecimal {
         /*
         For full details see references [2] and [1].
 
-        Let
-            Q_MAX = 2^(W-1) - P
         For finite v != 0, determine integers c and q such that
             |v| = c 2^q    and
             Q_MIN <= q <= Q_MAX    and
@@ -378,13 +402,13 @@ final public class FloatToDecimal {
         if (s >= 100) {
             /*
             For n = 9, m = 1 the table in section 10 of [1] shows
-                s' =
-                floor(s / 10) = floor(s 1'717'986'919 / 2^34)
+                s' = floor(s / 10) = floor(s 1_717_986_919 / 2^34)
 
-            sp10 = 10 s',    tp10 = 10 t' = sp10 + 10
+            sp10 = 10 s'
+            tp10 = 10 t'
             upin    iff    u' = sp10 10^k in Rv
             wpin    iff    w' = tp10 10^k in Rv
-            See section 9.3.
+            See section 9.4 of [1].
              */
             int sp10 = 10 * (int) (s * 1_717_986_919L >>> 34);
             int tp10 = sp10 + 10;
@@ -399,7 +423,7 @@ final public class FloatToDecimal {
         10 <= s < 100    or    s >= 100  and  u', w' not in Rv
         uin    iff    u = s 10^k in Rv
         win    iff    w = t 10^k in Rv
-        See section 9.3.
+        See section 9.4 of [1].
          */
         int t = s + 1;
         boolean uin = vbl + out <= s << 2;
@@ -410,7 +434,7 @@ final public class FloatToDecimal {
         }
         /*
         Both u and w lie in Rv: determine the one closest to v.
-        See section 9.3.
+        See section 9.4 of [1].
          */
         int cmp = vb - (s + t << 1);
         return toChars(cmp < 0 || cmp == 0 && (s & 0x1) == 0 ? s : t, k + dk);
@@ -418,7 +442,7 @@ final public class FloatToDecimal {
 
     /*
     Computes rop(cp g 2^(-95))
-    See appendix and figure 9 of [1].
+    See appendix and figure 8 of [1].
      */
     private static int rop(long g, long cp) {
         long x1 = multiplyHigh(g, cp);
@@ -458,7 +482,7 @@ final public class FloatToDecimal {
             l = the last 8, least significant digits of f
 
         For n = 9, m = 8 the table in section 10 of [1] shows
-            floor(f / 10^8) = floor(1'441'151'881 f / 2^57)
+            floor(f / 10^8) = floor(1_441_151_881 f / 2^57)
          */
         int h = (int) (f * 1_441_151_881L >>> 57);
         int l = f - 100_000_000 * h;
@@ -534,11 +558,11 @@ final public class FloatToDecimal {
     }
 
     private void removeTrailingZeroes() {
-        while (buf[index] == '0') {
+        while (bytes[index] == '0') {
             --index;
         }
         // ... but do not remove the one directly to the right of '.'
-        if (buf[index] == '.') {
+        if (bytes[index] == '.') {
             ++index;
         }
     }
@@ -577,19 +601,17 @@ final public class FloatToDecimal {
     }
 
     private void append(int c) {
-        buf[++index] = (byte) c;
+        bytes[++index] = (byte) c;
     }
 
     private void appendDigit(int d) {
-        buf[++index] = (byte) ('0' + d);
+        bytes[++index] = (byte) ('0' + d);
     }
 
-    /*
-    Using the deprecated constructor enhances performance.
-     */
+    // Using the deprecated constructor enhances performance.
     @SuppressWarnings("deprecation")
     private String charsToString() {
-        return new String(buf, 0, 0, index + 1);
+        return new String(bytes, 0, 0, index + 1);
     }
 
 }
