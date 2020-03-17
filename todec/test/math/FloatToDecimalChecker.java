@@ -32,8 +32,6 @@ import static math.MathUtils.flog10pow2;
 
 public class FloatToDecimalChecker extends ToDecimalChecker {
 
-    private static final int RANDOM_COUNT = 1_000_000;
-
     private static final int P =
             numberOfTrailingZeros(floatToRawIntBits(3)) + 2;
     private static final int W = (SIZE - 1) - (P - 1);
